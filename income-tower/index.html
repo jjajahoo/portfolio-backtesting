@@ -1,0 +1,1360 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<!-- artifact:start -->
+<title>노후 소득 3층탑</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: an architect's elevation sheet. The tower drawing anchors the top-left on graph paper,
+   readings and notes sit beside it, the age chart runs full width under them,
+   and the floor editors stack below in building order, 3F on top and 1F at the base. */
+:root{
+  --bg:#EDF0F3;
+  --surface:#FFFFFF;
+  --surface-2:#F4F6F9;
+  --ink:#141B24;
+  --muted:#5A6573;
+  --faint:#8B95A2;
+  --line:#D6DCE3;
+  --grid:rgba(47,79,162,.07);
+  --f1:#2F4FA2; --on-f1:#FFFFFF; --f1-soft:#E5EAF6;
+  --f2:#137A70; --on-f2:#FFFFFF; --f2-soft:#DFF0ED;
+  --f3:#D58E1C; --on-f3:#1E1504; --f3-soft:#FAEFD9;
+  --good:#1B7A4A; --good-soft:#DDF1E5;
+  --warn:#B4441A; --warn-soft:#F8E4DA;
+  --info:#3B5576; --info-soft:#E3E9F1;
+  --win:rgba(255,255,255,.26);
+  --slab:rgba(20,27,36,.55);
+  --shadow:0 1px 2px rgba(20,27,36,.05),0 10px 30px rgba(20,27,36,.06);
+  --font-display:"Black Han Sans","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1216; --surface:#161B21; --surface-2:#1C222A; --ink:#E6EAF0; --muted:#9BA5B2; --faint:#6F7985; --line:#2A323C;
+    --grid:rgba(110,143,227,.07);
+    --f1:#6F8FE3; --on-f1:#0A1330; --f1-soft:#1B2540;
+    --f2:#3DB8A7; --on-f2:#05201C; --f2-soft:#132E2A;
+    --f3:#E8AA4A; --on-f3:#231703; --f3-soft:#33270F;
+    --good:#4CC38A; --good-soft:#15301F;
+    --warn:#F08A5D; --warn-soft:#3A2219;
+    --info:#9DB4D6; --info-soft:#1D2735;
+    --win:rgba(8,12,18,.2);
+    --slab:rgba(8,12,18,.7);
+    --shadow:0 1px 2px rgba(0,0,0,.3);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1216; --surface:#161B21; --surface-2:#1C222A; --ink:#E6EAF0; --muted:#9BA5B2; --faint:#6F7985; --line:#2A323C;
+  --grid:rgba(110,143,227,.07);
+  --f1:#6F8FE3; --on-f1:#0A1330; --f1-soft:#1B2540;
+  --f2:#3DB8A7; --on-f2:#05201C; --f2-soft:#132E2A;
+  --f3:#E8AA4A; --on-f3:#231703; --f3-soft:#33270F;
+  --good:#4CC38A; --good-soft:#15301F;
+  --warn:#F08A5D; --warn-soft:#3A2219;
+  --info:#9DB4D6; --info-soft:#1D2735;
+  --win:rgba(8,12,18,.2);
+  --slab:rgba(8,12,18,.7);
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--f1);outline-offset:2px}
+.num,input[type=number]{font-variant-numeric:tabular-nums}
+
+.wrap{max-width:1180px;margin:0 auto;padding-inline:clamp(16px,3vw,32px);padding-block:28px 56px;display:grid;gap:22px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+.eyebrow{margin:0;font-size:12px;letter-spacing:.08em;color:var(--muted);font-weight:600}
+h1{font-family:var(--font-display);font-weight:400;font-size:clamp(32px,5vw,46px);line-height:1.05;margin:6px 0 8px;letter-spacing:-.01em;text-wrap:balance}
+.lede{margin:0;color:var(--muted);max-width:56ch}
+.save{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:8px;white-space:nowrap}
+.save i{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.save[data-s="local"] i{background:var(--f2)}
+.save[data-s="cloud"] i{background:var(--good)}
+.save[data-s="saving"] i{background:var(--f3)}
+
+/* conditions */
+.conds{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:grid;gap:12px}
+.conds-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px 16px;align-items:end}
+.fld{display:grid;gap:5px;min-width:0}
+.fld>span{font-size:12px;color:var(--muted);font-weight:500}
+.in{display:flex;align-items:center;border:1px solid var(--line);border-radius:5px;background:var(--surface);min-width:0}
+.in:focus-within{border-color:var(--f1);box-shadow:0 0 0 3px color-mix(in srgb,var(--f1) 18%,transparent)}
+.in input{border:0;background:transparent;padding:8px 4px 8px 10px;width:100%;min-width:0;outline:none;font-weight:600}
+.in em{font-style:normal;font-size:12px;color:var(--faint);padding-right:10px;white-space:nowrap}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.conds-foot{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:12.5px;color:var(--muted)}
+.chipbtn{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer;color:var(--muted)}
+.chipbtn:hover{color:var(--ink);border-color:var(--faint)}
+.err{color:var(--warn);font-weight:600}
+.toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-size:13px;color:var(--ink)}
+.toggle input{appearance:none;width:34px;height:20px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;transition:background .2s;margin:0;flex:none}
+.toggle input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--surface);transition:transform .2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.toggle input:checked{background:var(--ink)}
+.toggle input:checked::after{transform:translateX(14px)}
+.fld-toggle{display:flex;align-items:center;min-height:38px}
+
+.banner{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;background:var(--f3-soft);border:1px solid color-mix(in srgb,var(--f3) 40%,transparent);border-radius:var(--r);padding:10px 14px;font-size:13.5px}
+.banner b{font-weight:600}
+
+/* overview */
+.overview{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:880px){.overview{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+
+.tower-card{padding:16px 18px 14px}
+.tc-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.tc-age{margin:0;font-size:13px;color:var(--muted)}
+.tc-age strong{font-family:var(--font-display);font-weight:400;font-size:22px;color:var(--ink);margin-right:2px}
+.sky{position:relative;height:clamp(300px,42vw,400px);background-color:var(--surface);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:22px 22px;background-position:-1px -1px;border-bottom:0}
+.bldg{position:absolute;left:4px;bottom:0;top:0;width:52%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.roof{height:7px;background:var(--ink);border-radius:2px 2px 0 0;transition:width .45s cubic-bezier(.2,.7,.2,1)}
+.fl{position:relative;display:block;border:0;margin:0;padding:0;cursor:pointer;min-height:3px;border-top:2px solid var(--slab);transition:height .45s cubic-bezier(.2,.7,.2,1);overflow:hidden;text-align:left}
+.fl::before{content:"";position:absolute;inset:9px 12px 8px 46px;background:repeating-linear-gradient(90deg,var(--win) 0 11px,transparent 11px 21px);-webkit-mask:repeating-linear-gradient(180deg,#000 0 13px,transparent 13px 22px);mask:repeating-linear-gradient(180deg,#000 0 13px,transparent 13px 22px)}
+.fl b{position:absolute;left:10px;top:6px;font-family:var(--font-display);font-weight:400;font-size:17px;line-height:1;letter-spacing:.02em}
+.fl:hover{filter:brightness(1.06)}
+.fl1{background:var(--f1);width:100%}.fl1 b{color:var(--on-f1)}
+.fl2{background:var(--f2);width:91%}.fl2 b{color:var(--on-f2)}
+.fl3{background:var(--f3);width:82%}.fl3 b{color:var(--on-f3)}
+.goal{position:absolute;left:0;right:0;height:0;border-top:2px dashed var(--ink);opacity:.85;transition:bottom .45s cubic-bezier(.2,.7,.2,1);z-index:2;pointer-events:none}
+.goal span{position:absolute;left:8px;top:-12px;background:var(--surface);border:1px solid var(--ink);border-radius:4px;padding:1px 7px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.dims{position:absolute;left:calc(52% + 12px);right:0;top:0;bottom:0;z-index:3}
+.dim{position:absolute;left:0;right:0;display:grid;padding-left:18px;line-height:1.25;transform:translateY(50%);transition:bottom .45s cubic-bezier(.2,.7,.2,1)}
+.dim::before{content:"";position:absolute;left:0;top:50%;width:12px;border-top:1px solid var(--faint)}
+.dim span{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dim strong{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dim i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
+.dim-tot strong{font-family:var(--font-display);font-weight:400;font-size:20px}
+.dim.is-zero strong{color:var(--faint);font-weight:500;font-size:13px}
+.sky-empty{position:absolute;inset:0;display:grid;place-content:center;text-align:center;color:var(--muted);font-size:13.5px;margin:0;z-index:1}
+.ground{display:flex;justify-content:space-between;align-items:center;height:24px;padding:12px 2px 0;border-top:2px solid var(--ink);background:repeating-linear-gradient(-45deg,var(--line) 0 1px,transparent 1px 7px) top/100% 10px no-repeat;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.scrub{margin-top:12px;display:grid;gap:4px}
+.scrub label{font-size:12px;color:var(--muted);font-weight:500}
+.scrub input{width:100%;accent-color:var(--ink);margin:0}
+.scrub-scale{display:flex;justify-content:space-between;font-size:11.5px;color:var(--faint)}
+
+.readout{padding:18px 20px;display:grid;gap:16px}
+.ro-label{margin:0;font-size:13.5px;color:var(--muted)}
+.ro-big{margin:2px 0 0;font-family:var(--font-display);font-weight:400;font-size:clamp(46px,7vw,64px);line-height:1;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.ro-big small{font-size:.38em;margin-left:4px;color:var(--muted);letter-spacing:0}
+.ro-line{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.none{background:var(--surface-2);color:var(--muted)}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;margin:0;background:var(--line);border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.facts>div{background:var(--surface);padding:10px 12px;min-width:0}
+.facts dt{font-size:12px;color:var(--muted)}
+.facts dd{margin:2px 0 0;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.facts p{margin:1px 0 0;font-size:11.5px;color:var(--faint)}
+.notes-h{margin:0;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.notes{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.note{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;align-items:baseline;padding:10px 12px;border-radius:5px;background:var(--surface-2)}
+.note .tag{font-size:11px;font-weight:700;border-radius:3px;padding:1px 6px;white-space:nowrap}
+.note h4{margin:0;font-size:13.5px;font-weight:600;line-height:1.4}
+.note p{grid-column:2;margin:0;font-size:12.5px;color:var(--muted)}
+.t-warn .tag{background:var(--warn-soft);color:var(--warn)}
+.t-good .tag{background:var(--good-soft);color:var(--good)}
+.t-info .tag{background:var(--info-soft);color:var(--info)}
+.t-tax .tag{background:var(--f3-soft);color:color-mix(in srgb,var(--f3) 70%,var(--ink))}
+
+/* timeline */
+.timeline{padding:16px 18px 10px}
+.sec-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 18px;margin-bottom:6px}
+h2{font-size:17px;margin:0;font-weight:700;text-wrap:balance}
+.sec-sub{margin:2px 0 0;font-size:12.5px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);list-style:none;margin:0;padding:0}
+.legend li{display:flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.legend .lg-goal{width:16px;height:0;border-top:2px dashed var(--ink);border-radius:0}
+.legend .lg-gap{background:repeating-linear-gradient(45deg,var(--warn) 0 2px,var(--warn-soft) 2px 5px)}
+#chart{width:100%;overflow:hidden;touch-action:pan-y}
+#chart svg{display:block;width:100%;height:auto;cursor:crosshair}
+#chart text{font-family:var(--font-body);font-size:11px;fill:var(--muted)}
+
+/* floor editors */
+.floors{display:grid;gap:16px}
+.fe{padding:0;overflow:hidden}
+.fe-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
+.fe-badge{width:46px;height:46px;border-radius:4px;display:grid;place-items:center;font-family:var(--font-display);font-size:20px;position:relative;overflow:hidden}
+.fe3 .fe-badge{background:var(--f3);color:var(--on-f3)}
+.fe2 .fe-badge{background:var(--f2);color:var(--on-f2)}
+.fe1 .fe-badge{background:var(--f1);color:var(--on-f1)}
+.fe-title h2{font-size:18px}
+.fe-title p{margin:2px 0 0;font-size:12.5px;color:var(--muted);max-width:62ch}
+.fe-now{text-align:right;white-space:nowrap}
+.fe-now span{display:block;font-size:11.5px;color:var(--muted)}
+.fe-now strong{font-size:18px;font-variant-numeric:tabular-nums}
+@media (max-width:560px){.fe-head{grid-template-columns:auto minmax(0,1fr)}.fe-now{grid-column:1 / -1;text-align:left;display:flex;gap:8px;align-items:baseline}}
+.fe-tools{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between;padding:10px 18px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+.fe-opts{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--surface)}
+.seg label{position:relative;cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:block;padding:4px 10px;font-size:12.5px;color:var(--muted);border-left:1px solid var(--line)}
+.seg label:first-child span{border-left:0}
+.seg input:checked+span{background:var(--ink);color:var(--surface)}
+.seg input:focus-visible+span{outline:2px solid var(--f1);outline-offset:-2px}
+.opt-label{font-size:12.5px;color:var(--muted);margin-right:6px}
+.btn{border:1px solid var(--ink);background:var(--ink);color:var(--surface);border-radius:5px;padding:7px 14px;font-weight:600;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.btn:hover{opacity:.88}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--ink);opacity:1}
+.btn.sm{padding:4px 10px;font-size:12.5px}
+.rows{display:grid}
+.row{padding:14px 18px;border-bottom:1px solid var(--line);display:grid;gap:10px}
+.row:last-child{border-bottom:0}
+.row-top{display:flex;align-items:center;gap:10px;min-width:0}
+.row-name{flex:1 1 auto;min-width:0;border:0;border-bottom:1px dashed transparent;background:transparent;font-weight:700;font-size:15.5px;padding:2px 0}
+.row-name:hover{border-bottom-color:var(--line)}
+.row-name:focus{outline:none;border-bottom-color:var(--f1)}
+.code{font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:0 6px;white-space:nowrap}
+.kind{font-size:11.5px;border-radius:3px;padding:1px 6px;white-space:nowrap;font-weight:600}
+.kind.fixed{background:var(--f1-soft);color:var(--f1)}
+.kind.acct{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.row-x{border:0;background:transparent;color:var(--faint);cursor:pointer;font-size:12.5px;padding:4px 6px;border-radius:4px;white-space:nowrap}
+.row-x:hover{color:var(--warn);background:var(--warn-soft)}
+.row-sub{margin:-6px 0 0;font-size:12px;color:var(--faint)}
+.row-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px 12px}
+.row-fields .fld>span{font-size:11.5px}
+.row-fields .in input{padding:6px 2px 6px 9px;font-weight:600}
+.row-check{display:flex;align-items:end;padding-bottom:6px}
+.row-out{margin:0;font-size:13px;color:var(--muted)}
+.row-out b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.empty{padding:22px 18px;color:var(--muted);font-size:13.5px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+.foot{font-size:12px;color:var(--muted);display:grid;gap:10px;border-top:1px solid var(--line);padding-top:16px}
+.foot p{margin:0;max-width:90ch}
+.foot-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* picker */
+dialog{border:1px solid var(--line);border-radius:8px;padding:0;background:var(--surface);color:var(--ink);width:min(640px,calc(100vw - 24px));max-height:min(760px,calc(100vh - 32px));box-shadow:0 24px 60px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(10,14,20,.45)}
+.pk{display:flex;flex-direction:column;max-height:inherit}
+.pk-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.pk-head h3{margin:0;font-size:16px;display:flex;align-items:center;gap:10px}
+.pk-head h3 .fe-badge{width:30px;height:30px;font-size:14px}
+.pk-tools{padding:12px 18px;display:grid;gap:10px;border-bottom:1px solid var(--line)}
+.pk-search{width:100%;border:1px solid var(--line);border-radius:5px;padding:8px 10px;background:var(--surface)}
+.pk-search:focus{outline:none;border-color:var(--f1)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 11px;font-size:12.5px;cursor:pointer;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.pk-list{list-style:none;margin:0;padding:0;overflow:auto;flex:1 1 auto;min-height:120px}
+.pk-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:10px 18px;border-bottom:1px solid var(--line)}
+.pk-item h4{margin:0;font-size:14px;font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pk-item p{margin:0;font-size:12px;color:var(--muted)}
+.pk-metric{font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}
+.pk-add{grid-row:1 / span 2;grid-column:2}
+.pk-add[data-done]{background:var(--good-soft);color:var(--good);border-color:transparent}
+.pk-ai{padding:12px 18px;border-top:1px solid var(--line);background:var(--surface-2);display:grid;gap:8px}
+.pk-ai label{font-size:12.5px;font-weight:600}
+.pk-ai-row{display:flex;gap:8px}
+.pk-ai-row input{flex:1;min-width:0;border:1px solid var(--line);border-radius:5px;padding:7px 10px;background:var(--surface)}
+.pk-ai-out{font-size:12.5px;color:var(--muted)}
+.pk-ai-out .pk-item{padding:10px 0;border:0}
+.pk-foot{margin:0;padding:10px 18px 14px;font-size:11.5px;color:var(--faint)}
+
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:9px 14px;border-radius:6px;font-size:13px;display:flex;gap:12px;align-items:center;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:calc(100vw - 32px)}
+.toast button{border:0;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-weight:600;padding:0}
+
+@media (prefers-reduced-motion: reduce){
+  .fl,.roof,.goal,.dim{transition:none}
+}
+@media (max-width:480px){
+  .facts dd{font-size:16px}
+  .dim strong{font-size:14px}
+  .bldg{width:50%}
+  .dims{left:calc(50% + 10px)}
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">현재 돈 가치 기준 · 월 소득 설계</p>
+      <h1>노후 소득 3층탑</h1>
+      <p class="lede">1층 연금 위에 2층 이자, 3층 배당과 성장을 쌓아 은퇴 후 매달 들어올 돈을 설계해요. 연금·예금·배당주를 목록에서 골라 바로 연동할 수 있어요.</p>
+    </div>
+    <p class="save" id="saveState" data-s="example"><i></i><span>예시 설계 · 아직 저장 전</span></p>
+  </header>
+
+  <section class="conds" aria-label="설계 조건">
+    <div class="conds-grid">
+      <label class="fld"><span>현재 나이</span><div class="in"><input id="pAge" type="number" inputmode="numeric" min="0" max="99" step="1"><em>세</em></div></label>
+      <label class="fld"><span>은퇴 나이</span><div class="in"><input id="pRetire" type="number" inputmode="numeric" min="0" max="99" step="1"><em>세</em></div></label>
+      <label class="fld"><span>계산 끝 나이</span><div class="in"><input id="pEnd" type="number" inputmode="numeric" min="1" max="110" step="1"><em>세</em></div></label>
+      <label class="fld"><span>목표 월 생활비</span><div class="in"><input id="pGoal" type="number" inputmode="decimal" min="0" step="10"><em>만원</em></div></label>
+      <label class="fld"><span>물가상승률</span><div class="in"><input id="pInfl" type="number" inputmode="decimal" min="0" max="10" step="0.1"><em>%/년</em></div></label>
+      <div class="fld"><span>세금</span><div class="fld-toggle"><label class="toggle"><input id="pTax" type="checkbox"> 세후로 보기</label></div></div>
+    </div>
+    <div class="conds-foot">
+      <span>목표 참고:</span>
+      <button type="button" class="chipbtn" data-goal="297">부부 적정 297만</button>
+      <button type="button" class="chipbtn" data-goal="192">개인 적정 192만</button>
+      <span>국민연금연구원 노후준비 실태조사(2023)</span>
+      <span id="pErr" class="err" hidden></span>
+    </div>
+    <p class="sec-sub" style="margin:0">물가상승률 0%면 지금 돈 가치 그대로 고정해서 봐요. 값을 넣으면 금리·배당 같은 명목 수치에서 물가만큼 빼서 모든 금액을 오늘 돈 가치로 바꿔 보여줘요.</p>
+  </section>
+
+  <div class="banner" id="exampleBanner">
+    <span><b>예시 설계</b>로 채워져 있어요. 숫자를 바꾸면 바로 내 설계로 저장돼요.</span>
+    <button type="button" class="btn ghost sm" id="btnBlank">빈 설계로 시작</button>
+  </div>
+
+  <section class="overview">
+    <div class="card tower-card">
+      <div class="tc-head">
+        <p class="eyebrow">입면도 · 월 소득</p>
+        <p class="tc-age"><strong id="tAge">65</strong>세 기준</p>
+      </div>
+      <div class="sky" id="sky" role="img" aria-label="">
+        <div class="goal" id="tGoal"><span id="tGoalTxt">목표</span></div>
+        <div class="bldg">
+          <div class="roof" id="tRoof"></div>
+          <button type="button" class="fl fl3" id="tF3" data-go="ed-f3"><b>3F</b></button>
+          <button type="button" class="fl fl2" id="tF2" data-go="ed-f2"><b>2F</b></button>
+          <button type="button" class="fl fl1" id="tF1" data-go="ed-f1"><b>1F</b></button>
+        </div>
+        <div class="dims">
+          <div class="dim dim-tot" id="dTot"><span>합계</span><strong></strong></div>
+          <div class="dim" id="dF3"><span><i style="background:var(--f3)"></i>3층 배당+성장</span><strong></strong></div>
+          <div class="dim" id="dF2"><span><i style="background:var(--f2)"></i>2층 이자</span><strong></strong></div>
+          <div class="dim" id="dF1"><span><i style="background:var(--f1)"></i>1층 연금</span><strong></strong></div>
+        </div>
+        <p class="sky-empty" id="tEmpty" hidden>아직 지은 층이 없어요.<br>아래에서 상품을 연동해 쌓아 보세요.</p>
+      </div>
+      <div class="ground"><span>GL ±0</span><span id="tGround"></span></div>
+      <div class="scrub">
+        <label for="ageRange">나이를 옮겨 층이 어떻게 바뀌는지 보세요</label>
+        <input type="range" id="ageRange" min="60" max="89" step="1">
+        <div class="scrub-scale"><span id="sMin"></span><span id="sMax"></span></div>
+      </div>
+    </div>
+
+    <div class="card readout">
+      <div>
+        <p class="ro-label"><span id="rAge">65</span>세에 매달 들어오는 돈</p>
+        <p class="ro-big"><span id="rTotal">0</span><small>만원</small></p>
+        <div class="ro-line"><span class="pill none" id="rPill">—</span><span id="rSub"></span></div>
+      </div>
+      <dl class="facts">
+        <div><dt>은퇴 시점 금융자산</dt><dd id="fxRet">—</dd><p>2층 원금 + 3층 평가액</p></div>
+        <div><dt>연금계좌 적립금</dt><dd id="fxAcct">—</dd><p>각 연금 개시 시점</p></div>
+        <div><dt id="fxEndLabel">계산 끝에 남는 자산</dt><dd id="fxEnd">—</dd><p>2층 원금 + 3층 평가액</p></div>
+        <div><dt>모든 층 완공</dt><dd id="fxDone">—</dd><p>마지막 연금이 시작되는 나이</p></div>
+      </dl>
+      <div style="display:grid;gap:8px">
+        <h3 class="notes-h">설계 메모</h3>
+        <ul class="notes" id="notes"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="card timeline" aria-labelledby="tlTitle">
+    <div class="sec-head">
+      <div>
+        <h2 id="tlTitle">나이별 월 소득</h2>
+        <p class="sec-sub">막대를 누르거나 끌면 위 입면도의 나이가 바뀌어요.</p>
+      </div>
+      <ul class="legend">
+        <li><i style="background:var(--f1)"></i>1층 연금</li>
+        <li><i style="background:var(--f2)"></i>2층 이자</li>
+        <li><i style="background:var(--f3)"></i>3층 배당+성장</li>
+        <li><i class="lg-goal"></i>목표</li>
+        <li><i class="lg-gap"></i>부족</li>
+      </ul>
+    </div>
+    <div id="chart"></div>
+  </section>
+
+  <section class="floors" aria-label="층별 설계">
+    <article class="card fe fe3" id="ed-f3">
+      <header class="fe-head">
+        <div class="fe-badge" aria-hidden="true">3F</div>
+        <div class="fe-title"><h2>3층 · 배당 + 성장</h2><p>배당주·배당 ETF·리츠. 은퇴 전에는 배당을 다시 사서 불리고, 은퇴 후에는 배당을 생활비로 받아요.</p></div>
+        <div class="fe-now"><span data-now-age></span><strong id="now-f3">—</strong></div>
+      </header>
+      <div class="fe-tools">
+        <div class="fe-opts">
+          <label class="toggle"><input type="checkbox" id="f3Drip"> 은퇴 전 배당 재투자</label>
+          <div><span class="opt-label">은퇴 후 받는 방식</span>
+            <span class="seg" role="radiogroup" aria-label="은퇴 후 받는 방식">
+              <label><input type="radio" name="wd" value="0"><span>배당만</span></label>
+              <label><input type="radio" name="wd" value="3"><span>평가액 3%</span></label>
+              <label><input type="radio" name="wd" value="4"><span>4%</span></label>
+              <label><input type="radio" name="wd" value="5"><span>5%</span></label>
+            </span>
+          </div>
+        </div>
+        <button type="button" class="btn" data-pick="dividend">+ 종목 연동</button>
+      </div>
+      <div class="rows" id="rows-dividend"></div>
+    </article>
+
+    <article class="card fe fe2" id="ed-f2">
+      <header class="fe-head">
+        <div class="fe-badge" aria-hidden="true">2F</div>
+        <div class="fe-title"><h2>2층 · 이자</h2><p>예금·채권·CMA. 은퇴 전에는 이자를 다시 넣어 원금을 키우고, 은퇴 후에는 원금은 두고 이자만 받아요.</p></div>
+        <div class="fe-now"><span data-now-age></span><strong id="now-f2">—</strong></div>
+      </header>
+      <div class="fe-tools">
+        <span class="opt-label">이자·배당소득세 15.4% 원천징수 기준</span>
+        <button type="button" class="btn" data-pick="interest">+ 상품 연동</button>
+      </div>
+      <div class="rows" id="rows-interest"></div>
+    </article>
+
+    <article class="card fe fe1" id="ed-f1">
+      <header class="fe-head">
+        <div class="fe-badge" aria-hidden="true">1F</div>
+        <div class="fe-title"><h2>1층 · 연금</h2><p>국민연금처럼 정해진 금액을 받는 <b>정액형</b>과, 퇴직연금·연금저축처럼 모은 돈을 나눠 받는 <b>적립형</b>을 함께 쌓아요.</p></div>
+        <div class="fe-now"><span data-now-age></span><strong id="now-f1">—</strong></div>
+      </header>
+      <div class="fe-tools">
+        <span class="opt-label">연금계좌 연금소득세 5.5% (70세 미만) · 4.4% · 3.3% (80세 이상)</span>
+        <button type="button" class="btn" data-pick="pension">+ 연금 연동</button>
+      </div>
+      <div class="rows" id="rows-pension"></div>
+    </article>
+  </section>
+
+  <footer class="foot">
+    <p>상품 목록의 금리·배당률·성장률은 2025~26년 무렵의 대략적인 참고값이에요. 실제 수치로 고쳐 쓰세요. 투자 권유가 아니며, 세금은 이자·배당 15.4%와 연금계좌 연금소득세만 단순 반영했어요. 건강보험료, 환율, 매매차익 세금, 국민연금 소득세는 빠져 있어요.</p>
+    <div class="foot-actions">
+      <button type="button" class="btn ghost sm" id="btnExample">예시 설계 불러오기</button>
+      <button type="button" class="btn ghost sm" id="btnReset">모두 지우기</button>
+      <span id="resetConfirm" hidden>정말 모두 지울까요? <button type="button" class="btn sm" id="btnResetYes">지우기</button> <button type="button" class="btn ghost sm" id="btnResetNo">취소</button></span>
+    </div>
+  </footer>
+</div>
+
+<dialog id="picker" aria-labelledby="pkTitle">
+  <div class="pk">
+    <div class="pk-head">
+      <h3 id="pkTitle"></h3>
+      <button type="button" class="btn ghost sm" id="pkClose">완료</button>
+    </div>
+    <div class="pk-tools" id="pkTools">
+      <input type="search" class="pk-search" id="pkSearch" placeholder="이름·티커·종목코드로 찾기" autocomplete="off">
+      <div class="chips" id="pkCats"></div>
+    </div>
+    <ul class="pk-list" id="pkList"></ul>
+    <div class="pk-ai" id="pkAi" hidden>
+      <label for="aiQ">목록에 없나요? Claude에게 참고값 물어보기</label>
+      <div class="pk-ai-row">
+        <input id="aiQ" placeholder="예: VNQ, 카카오뱅크 정기예금" autocomplete="off">
+        <button type="button" class="btn sm" id="aiGo">물어보기</button>
+        <button type="button" class="btn ghost sm" id="aiStop" hidden>멈추기</button>
+      </div>
+      <div class="pk-ai-out" id="aiOut"></div>
+    </div>
+    <p class="pk-foot" id="pkFoot">참고값은 대략치예요. 추가한 뒤 실제 수치로 고치세요.</p>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden><span id="toastMsg"></span><button type="button" id="toastUndo" hidden>되돌리기</button></div>
+
+<script>
+(() => {
+'use strict';
+
+const TAX_FIN = 0.154;
+const LS_KEY = 'income-tower-v1';
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { const n = typeof v === 'number' ? v : parseFloat(v); return isFinite(n) ? n : 0; };
+const uid = () => Math.random().toString(36).slice(2, 10);
+const nf = new Intl.NumberFormat('ko-KR');
+
+/* 만원 단위 → 읽기 쉬운 문자열 */
+function man(v){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a >= 10000){
+    const e = v / 10000;
+    return (a >= 100000 ? Math.round(e) : Math.round(e * 10) / 10).toLocaleString('ko-KR') + '억';
+  }
+  if (a > 0 && a < 10) return (Math.round(v * 10) / 10).toLocaleString('ko-KR') + '만';
+  return nf.format(Math.round(v)) + '만';
+}
+const won = v => man(v) + '원';
+const pct = v => (Math.round(v * 10) / 10).toLocaleString('ko-KR') + '%';
+
+/* ---------------- 연동 목록 (참고값) ---------------- */
+const CATALOG = {
+  dividend: {
+    title: '3층 · 배당 종목 연동', badge: '3F',
+    cats: [['all','전체'],['kr-etf','국내 상장 ETF'],['us-etf','미국 ETF'],['us-stock','미국 주식'],['kr-stock','국내 주식'],['reit','리츠·인프라']],
+    items: [
+      {cat:'kr-etf', name:'TIGER 미국배당다우존스', code:'458730', sub:'SCHD와 같은 지수 · 월배당 · 원화 투자', y:3.6, dgr:6, pgr:5},
+      {cat:'kr-etf', name:'SOL 미국배당다우존스', code:'446720', sub:'SCHD와 같은 지수 · 월배당 · 원화 투자', y:3.6, dgr:6, pgr:5},
+      {cat:'kr-etf', name:'PLUS 고배당주', code:'161510', sub:'국내 고배당주 · 월배당', y:5.5, dgr:4, pgr:3},
+      {cat:'kr-etf', name:'TIGER 은행고배당플러스TOP10', code:'466940', sub:'국내 은행주 · 월배당', y:5.5, dgr:5, pgr:4},
+      {cat:'kr-etf', name:'KODEX 200', code:'069500', sub:'코스피 200 · 분기배당', y:1.8, dgr:5, pgr:5},
+      {cat:'kr-etf', name:'TIGER 미국S&P500', code:'360750', sub:'S&P 500 · 월배당 · 성장형', y:1.1, dgr:6, pgr:7},
+      {cat:'us-etf', name:'SCHD', code:'SCHD', sub:'Schwab 미국 배당 · 분기배당', y:3.8, dgr:6, pgr:5},
+      {cat:'us-etf', name:'VYM', code:'VYM', sub:'Vanguard 고배당 · 분기배당', y:2.7, dgr:5, pgr:5},
+      {cat:'us-etf', name:'VIG', code:'VIG', sub:'Vanguard 배당성장 · 분기배당', y:1.7, dgr:8, pgr:7},
+      {cat:'us-etf', name:'DGRO', code:'DGRO', sub:'iShares 배당성장 · 분기배당', y:2.2, dgr:7, pgr:6},
+      {cat:'us-etf', name:'JEPI', code:'JEPI', sub:'커버드콜 · 월배당 · 배당 성장 거의 없음', y:7.5, dgr:0, pgr:0},
+      {cat:'us-etf', name:'JEPQ', code:'JEPQ', sub:'나스닥 커버드콜 · 월배당', y:9.5, dgr:0, pgr:1},
+      {cat:'us-etf', name:'SPYD', code:'SPYD', sub:'S&P 500 고배당 · 분기배당', y:4.5, dgr:2, pgr:2},
+      {cat:'us-etf', name:'VOO', code:'VOO', sub:'S&P 500 · 성장 중심', y:1.2, dgr:6, pgr:7},
+      {cat:'us-stock', name:'리얼티인컴', code:'O', sub:'미국 리츠 · 월배당', y:5.6, dgr:3, pgr:2},
+      {cat:'us-stock', name:'코카콜라', code:'KO', sub:'배당왕 · 분기배당', y:2.9, dgr:4.5, pgr:4},
+      {cat:'us-stock', name:'존슨앤드존슨', code:'JNJ', sub:'배당왕 · 분기배당', y:3.0, dgr:5, pgr:4},
+      {cat:'us-stock', name:'P&G', code:'PG', sub:'배당왕 · 분기배당', y:2.7, dgr:5, pgr:4},
+      {cat:'us-stock', name:'펩시코', code:'PEP', sub:'배당왕 · 분기배당', y:3.8, dgr:5, pgr:3},
+      {cat:'us-stock', name:'애브비', code:'ABBV', sub:'제약 · 분기배당', y:3.3, dgr:6, pgr:5},
+      {cat:'us-stock', name:'마이크로소프트', code:'MSFT', sub:'성장 + 배당 · 분기배당', y:0.8, dgr:10, pgr:9},
+      {cat:'us-stock', name:'버라이즌', code:'VZ', sub:'통신 · 분기배당', y:6.3, dgr:2, pgr:0},
+      {cat:'kr-stock', name:'삼성전자우', code:'005935', sub:'분기배당', y:2.5, dgr:3, pgr:4},
+      {cat:'kr-stock', name:'KB금융', code:'105560', sub:'분기배당 · 자사주 소각', y:3.3, dgr:8, pgr:6},
+      {cat:'kr-stock', name:'신한지주', code:'055550', sub:'분기배당', y:3.8, dgr:7, pgr:5},
+      {cat:'kr-stock', name:'하나금융지주', code:'086790', sub:'분기배당', y:4.5, dgr:7, pgr:5},
+      {cat:'kr-stock', name:'우리금융지주', code:'316140', sub:'분기배당', y:5.5, dgr:6, pgr:4},
+      {cat:'kr-stock', name:'기업은행', code:'024110', sub:'연배당', y:6.0, dgr:4, pgr:3},
+      {cat:'kr-stock', name:'KT&G', code:'033780', sub:'반기배당', y:4.0, dgr:4, pgr:4},
+      {cat:'reit', name:'맥쿼리인프라', code:'088980', sub:'인프라 펀드 · 반기배당', y:6.5, dgr:1, pgr:0},
+      {cat:'reit', name:'TIGER 리츠부동산인프라', code:'329200', sub:'국내 리츠 ETF · 월배당', y:7.0, dgr:0, pgr:0},
+      {cat:'reit', name:'SK리츠', code:'395400', sub:'국내 리츠 · 분기배당', y:6.5, dgr:2, pgr:0},
+      {cat:'reit', name:'VNQ', code:'VNQ', sub:'미국 리츠 ETF · 분기배당', y:4.0, dgr:3, pgr:3},
+      {cat:'custom', name:'직접 입력', code:'', sub:'목록에 없는 종목', y:4.0, dgr:3, pgr:3}
+    ]
+  },
+  interest: {
+    title: '2층 · 이자 상품 연동', badge: '2F',
+    cats: [['all','전체'],['deposit','예금'],['parking','파킹·CMA'],['bond','채권'],['fx','달러']],
+    items: [
+      {cat:'deposit', name:'시중은행 정기예금', sub:'1년 만기 · 예금자보호 1억원', rate:2.6},
+      {cat:'deposit', name:'인터넷은행 정기예금', sub:'1년 만기 · 예금자보호 1억원', rate:2.7},
+      {cat:'deposit', name:'저축은행 정기예금', sub:'1년 만기 · 예금자보호 1억원', rate:3.0},
+      {cat:'parking', name:'파킹통장', sub:'수시입출금 · 인터넷은행', rate:2.0},
+      {cat:'parking', name:'증권사 CMA (RP형)', sub:'수시입출금 · 예금자보호 없음', rate:2.3},
+      {cat:'parking', name:'증권사 발행어음', sub:'1년 · 초대형 IB 발행', rate:3.0},
+      {cat:'parking', name:'KODEX CD금리액티브', sub:'459580 · 파킹형 ETF', rate:2.6},
+      {cat:'bond', name:'국고채 10년', sub:'국가 신용 · 반기 이자', rate:2.9},
+      {cat:'bond', name:'국고채 30년', sub:'국가 신용 · 장기 보유용', rate:2.8},
+      {cat:'bond', name:'회사채 AA- (3년)', sub:'우량 회사채', rate:3.2},
+      {cat:'fx', name:'미국 국채 10년', sub:'달러 · 환율 변동 있음', rate:4.2},
+      {cat:'fx', name:'미국 단기국채 ETF', sub:'SGOV·BIL 등 · 달러', rate:3.8},
+      {cat:'custom', name:'직접 입력', sub:'목록에 없는 상품', rate:3.0}
+    ]
+  },
+  pension: {
+    title: '1층 · 연금 연동', badge: '1F',
+    cats: [['all','전체'],['fixed','정액형'],['acct','적립형']],
+    items: [
+      {cat:'fixed', kind:'fixed', name:'국민연금', sub:'국민연금공단에서 조회한 예상연금월액(현재가치) · 물가연동', amount:110, start:65, years:0, indexed:true},
+      {cat:'fixed', kind:'fixed', name:'공무원·사학·군인연금', sub:'직역연금 · 물가연동', amount:200, start:65, years:0, indexed:true},
+      {cat:'fixed', kind:'fixed', name:'주택연금', sub:'한국주택금융공사 · 정액형은 물가연동 아님', amount:100, start:60, years:0, indexed:false},
+      {cat:'fixed', kind:'fixed', name:'개인연금보험 (확정형)', sub:'보험사 연금 · 정해진 금액', amount:50, start:65, years:20, indexed:false},
+      {cat:'acct', kind:'acct', name:'퇴직연금 (IRP·DC)', sub:'적립금을 연금으로 나눠 받기 · 55세부터', bal:3000, monthly:30, r:4, start:60, years:20},
+      {cat:'acct', kind:'acct', name:'연금저축펀드', sub:'세액공제 · 55세부터 수령', bal:1000, monthly:30, r:5, start:60, years:20},
+      {cat:'acct', kind:'acct', name:'연금저축보험', sub:'공시이율형', bal:1000, monthly:30, r:2.8, start:60, years:20},
+      {cat:'fixed', kind:'fixed', name:'직접 입력 · 정액형', sub:'매달 정해진 금액', amount:50, start:65, years:0, indexed:true},
+      {cat:'acct', kind:'acct', name:'직접 입력 · 적립형', sub:'모은 돈을 나눠 받기', bal:1000, monthly:0, r:4, start:60, years:20}
+    ]
+  }
+};
+const LIST_KEY = { dividend:'dividend', interest:'interest', pension:'pensions' };
+
+function fromTemplate(kind, t){
+  if (kind === 'dividend') return { id:uid(), name:t.name, code:t.code||'', sub:t.sub||'', amount:1000, monthly:0, y:t.y, dgr:t.dgr, pgr:t.pgr };
+  if (kind === 'interest') return { id:uid(), name:t.name, sub:t.sub||'', amount:1000, monthly:0, rate:t.rate };
+  if (t.kind === 'fixed') return { id:uid(), kind:'fixed', name:t.name, sub:t.sub||'', amount:t.amount, start:t.start, years:t.years, indexed:!!t.indexed };
+  return { id:uid(), kind:'acct', name:t.name, sub:t.sub||'', bal:t.bal, monthly:t.monthly, r:t.r, start:t.start, years:t.years };
+}
+const tpl = (kind, name) => CATALOG[kind].items.find(i => i.name === name);
+
+function examplePlan(){
+  const p = (n, o) => Object.assign(fromTemplate('pension', tpl('pension', n)), o);
+  const i = (n, o) => Object.assign(fromTemplate('interest', tpl('interest', n)), o);
+  const d = (n, o) => Object.assign(fromTemplate('dividend', tpl('dividend', n)), o);
+  return {
+    v:1, example:true, updatedAt:0,
+    profile:{ age:40, retire:60, end:90, goal:300, infl:0, tax:true },
+    f3:{ drip:true, wd:0 },
+    pensions:[
+      p('국민연금', { amount:110 }),
+      p('퇴직연금 (IRP·DC)', { bal:2500, monthly:20, r:4, years:25 }),
+      p('연금저축펀드', { bal:800, monthly:20, r:5, years:20 })
+    ],
+    interest:[
+      i('시중은행 정기예금', { amount:3000 }),
+      i('국고채 10년', { amount:2000, monthly:20 })
+    ],
+    dividend:[
+      d('TIGER 미국배당다우존스', { amount:800, monthly:20 }),
+      d('KB금융', { amount:300 }),
+      d('리얼티인컴', { amount:500 })
+    ]
+  };
+}
+function blankPlan(profile){
+  return { v:1, example:false, updatedAt:Date.now(), profile:Object.assign({}, profile || examplePlan().profile), f3:{ drip:true, wd:0 }, pensions:[], interest:[], dividend:[] };
+}
+function normalize(s){
+  const base = blankPlan();
+  if (!s || typeof s !== 'object') return examplePlan();
+  const out = Object.assign(base, s);
+  out.profile = Object.assign({}, examplePlan().profile, s.profile || {});
+  out.f3 = Object.assign({ drip:true, wd:0 }, s.f3 || {});
+  for (const k of ['pensions','interest','dividend']) out[k] = Array.isArray(s[k]) ? s[k].filter(x => x && x.id) : [];
+  return out;
+}
+
+/* ---------------- 계산 ---------------- */
+function simulate(st, over){
+  const P = Object.assign({}, st.profile, over || {});
+  const age0 = Math.max(0, Math.round(num(P.age)));
+  const ret = Math.max(age0, Math.round(num(P.retire)));
+  const end = Math.max(ret + 1, Math.round(num(P.end)));
+  const infl = Math.max(-0.5, num(P.infl) / 100);
+  const tax = P.tax ? TAX_FIN : 0;
+  const Y = end - age0, M = Y * 12, retM = (ret - age0) * 12;
+  const defl = new Float64Array(M + 1);
+  for (let m = 0; m <= M; m++) defl[m] = Math.pow(1 + infl, m / 12);
+  const yr = () => new Float64Array(Y);
+  const o = { age0, ret, end, Y, infl, tax, f1:yr(), f2:yr(), f3:yr(), sell:yr(), finGross:yr(), privGross:yr(),
+    item:{}, meta:{}, atRet:{ f2:0, f3:0 }, acctTotal:0, atEnd:{ f2:0, f3:0 }, starts:[], ends:[] };
+  const put = (fl, id, m, real) => { const y = (m / 12) | 0; o[fl][y] += real / 12; o.item[id][y] += real / 12; };
+
+  for (const p of st.pensions){
+    o.item[p.id] = yr();
+    const start = Math.round(num(p.start));
+    const startM = (start - age0) * 12;
+    const yrs = Math.max(0, Math.round(num(p.years)));
+    const sM = Math.max(0, startM);
+    if (p.kind === 'fixed'){
+      const A = Math.max(0, num(p.amount));
+      const stopM = yrs > 0 ? startM + yrs * 12 : M;
+      for (let m = sM; m < Math.min(M, stopM); m++){
+        const real = p.indexed ? A : A * defl[sM] / defl[m];
+        put('f1', p.id, m, real);
+      }
+      o.meta[p.id] = { start, stopAge: yrs > 0 ? start + yrs : null };
+      if (A > 0 && sM < M){ o.starts.push(start); if (yrs > 0) o.ends.push({ age:start + yrs, name:p.name }); }
+    } else {
+      let B = Math.max(0, num(p.bal));
+      const r = num(p.r) / 100;
+      const rm = Math.pow(1 + r, 1 / 12) - 1;
+      const cEnd = Math.min(retM, sM);
+      const c = Math.max(0, num(p.monthly));
+      for (let m = 0; m < Math.min(sM, M); m++) B = B * (1 + rm) + (m < cEnd ? c * defl[m] : 0);
+      const Breal = B / defl[Math.min(sM, M)];
+      const rr = Math.pow((1 + r) / (1 + infl), 1 / 12) - 1;
+      const N = yrs > 0 ? yrs * 12 : Math.max(0, M - sM);
+      const pay = N > 0 ? (Math.abs(rr) < 1e-9 ? Breal / N : Breal * rr / (1 - Math.pow(1 + rr, -N))) : 0;
+      for (let m = sM; m < Math.min(M, sM + N); m++){
+        const age = age0 + m / 12;
+        const t = st.profile.tax ? (age < 70 ? 0.055 : age < 80 ? 0.044 : 0.033) : 0;
+        put('f1', p.id, m, pay * (1 - t));
+        o.privGross[(m / 12) | 0] += pay * defl[m];
+      }
+      o.meta[p.id] = { start, balAtStart:Breal, pay, payNet:pay * (1 - (st.profile.tax ? 0.055 : 0)), stopAge: yrs > 0 ? start + yrs : null };
+      if (sM < M) o.acctTotal += Breal;
+      if (pay > 0 && sM < M){ o.starts.push(start); if (yrs > 0) o.ends.push({ age:start + yrs, name:p.name }); }
+    }
+  }
+
+  for (const h of st.interest){
+    o.item[h.id] = yr();
+    let B = Math.max(0, num(h.amount));
+    const r = num(h.rate) / 100 / 12;
+    const c = Math.max(0, num(h.monthly));
+    let balRet = 0;
+    for (let m = 0; m < M; m++){
+      if (m === retM) balRet = B / defl[m];
+      const g = B * r, net = g * (1 - tax);
+      if (m < retM) B += net + c * defl[m];
+      else { put('f2', h.id, m, net / defl[m]); o.finGross[(m / 12) | 0] += g; }
+    }
+    o.meta[h.id] = { balRet, balEnd:B / defl[M], rate:num(h.rate) };
+    o.atRet.f2 += balRet; o.atEnd.f2 += B / defl[M];
+  }
+
+  const drip = st.f3.drip !== false;
+  const wd = Math.max(0, num(st.f3.wd)) / 100;
+  for (const h of st.dividend){
+    o.item[h.id] = yr();
+    let S = Math.max(0, num(h.amount));
+    const y0 = num(h.y) / 100, gd = num(h.dgr) / 100, gp = num(h.pgr) / 100;
+    const c = Math.max(0, num(h.monthly));
+    let valRet = 0, sold = 0;
+    for (let m = 0; m < M; m++){
+      const Pm = Math.pow(1 + gp, m / 12);
+      const dps = y0 * Math.pow(1 + gd, m / 12);
+      if (m === retM) valRet = S * Pm / defl[m];
+      const g = S * dps / 12, net = g * (1 - tax);
+      if (m < retM){
+        if (drip) S += net / Pm;
+        S += c * defl[m] / Pm;
+      } else {
+        let inc = net;
+        const want = wd * S * Pm / 12;
+        if (want > inc){
+          const s = want - inc;
+          S -= s / Pm; inc = want; sold += s / defl[m];
+          o.sell[(m / 12) | 0] += s / defl[m] / 12;
+        }
+        put('f3', h.id, m, inc / defl[m]);
+        o.finGross[(m / 12) | 0] += g;
+      }
+    }
+    const valEnd = S * Math.pow(1 + gp, M / 12) / defl[M];
+    o.meta[h.id] = { valRet, valEnd, sold };
+    o.atRet.f3 += valRet; o.atEnd.f3 += valEnd;
+  }
+
+  o.total = yr();
+  for (let y = 0; y < Y; y++) o.total[y] = o.f1[y] + o.f2[y] + o.f3[y];
+  o.done = Math.min(end - 1, Math.max(ret, ...o.starts));
+  o.view0 = Math.max(age0, Math.min(ret, ...o.starts));
+  let mx = 0;
+  for (let a = o.view0; a < end; a++) mx = Math.max(mx, o.total[a - age0]);
+  o.maxTotal = mx;
+  return o;
+}
+
+/* ---------------- 상태 ---------------- */
+let state = examplePlan();
+let sim = null;
+let selAge = null, selTouched = false;
+
+function loadLocal(){
+  try { const s = localStorage.getItem(LS_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+}
+function saveLocal(){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); return true; } catch (e) { return false; }
+}
+
+/* 계정 저장 (db) — 쓸 수 없으면 브라우저 저장만 */
+let cloudRef = null, cloudBusy = false, cloudDirty = false, cloudTimer = 0;
+function setSave(s){
+  const el = $('#saveState');
+  el.dataset.s = s;
+  el.querySelector('span').textContent = {
+    example:'예시 설계 · 아직 저장 전',
+    local:'이 브라우저에 저장됨',
+    saving:'저장 중…',
+    cloud:'내 계정에 저장됨 · 다른 기기에서도 이어져요',
+    none:'저장되지 않음 · 이 화면을 닫으면 사라져요'
+  }[s] || '';
+}
+function scheduleCloud(){
+  if (!cloudRef || state.example) return;
+  clearTimeout(cloudTimer);
+  setSave('saving');
+  cloudTimer = setTimeout(flushCloud, 1200);
+}
+async function flushCloud(){
+  if (!cloudRef) return;
+  if (cloudBusy){ cloudDirty = true; return; }
+  cloudBusy = true;
+  try {
+    await cloudRef.set({ v:1, updatedAt:state.updatedAt, plan:JSON.parse(JSON.stringify(state)) });
+    setSave('cloud');
+  } catch (e) {
+    if (e && (e.code === 'invalid_argument' || e.code === 'revoked' || e.code === 'not_granted')) cloudRef = null;
+    setSave(localOk ? 'local' : 'none');
+  } finally {
+    cloudBusy = false;
+    if (cloudDirty){ cloudDirty = false; flushCloud(); }
+  }
+}
+async function initCloud(){
+  const c = window.claude;
+  if (!c || typeof c.use !== 'function') return;
+  try {
+    const [db, user] = await Promise.all([c.use('db'), c.use('user')]);
+    if (!db || !user) return;
+    const id = await user.id();
+    if (!id) return;
+    const ref = db.doc('data/users/' + id + '/plan');
+    const snap = await ref.get();
+    const d = snap.exists ? snap.data() : null;
+    if (d && d.plan && num(d.updatedAt) > num(state.updatedAt)){
+      state = normalize(d.plan);
+      saveLocal();
+      selTouched = false;
+      renderAll();
+      toast('계정에 저장된 설계를 불러왔어요');
+    }
+    cloudRef = ref;
+    if (!state.example){
+      if (!d || num(d.updatedAt) < num(state.updatedAt)) scheduleCloud();
+      else setSave('cloud');
+    }
+  } catch (e) { /* 계정 저장 없이 계속 */ }
+}
+
+let localOk = true;
+function touched(){
+  if (state.example){ state.example = false; $('#exampleBanner').hidden = true; }
+  state.updatedAt = Date.now();
+  localOk = saveLocal();
+  setSave(localOk ? 'local' : 'none');
+  scheduleCloud();
+}
+
+/* ---------------- 렌더 ---------------- */
+let raf = 0;
+function update(){ cancelAnimationFrame(raf); raf = requestAnimationFrame(recompute); }
+
+function recompute(){
+  sim = simulate(state);
+  const lo = sim.view0, hi = sim.end - 1;
+  if (!selTouched || selAge == null || selAge < lo || selAge > hi) selAge = sim.done;
+  selAge = Math.min(hi, Math.max(lo, selAge));
+  const r = $('#ageRange');
+  r.min = lo; r.max = hi; r.value = selAge;
+  $('#sMin').textContent = lo + '세';
+  $('#sMax').textContent = hi + '세';
+  renderTower(); renderReadout(); renderNotes(); drawChart(); renderRowOutputs(); renderFloorNow(); renderProfileErr();
+}
+
+function at(arr, age){ const y = age - sim.age0; return y >= 0 && y < sim.Y ? arr[y] : 0; }
+
+function renderTower(){
+  const goal = Math.max(0, num(state.profile.goal));
+  const v1 = at(sim.f1, selAge), v2 = at(sim.f2, selAge), v3 = at(sim.f3, selAge);
+  const tot = v1 + v2 + v3;
+  const mx = Math.max(goal, sim.maxTotal) * 1.14 || 100;
+  const sky = $('#sky');
+  const H = sky.clientHeight || 360;
+  const pctOf = v => v / mx * 100;
+  const fl = [['#tF1', v1, 'f1', '1층 연금', '100%'], ['#tF2', v2, 'f2', '2층 이자', '91%'], ['#tF3', v3, 'f3', '3층 배당+성장', '82%']];
+  let topW = null;
+  for (const [sel, v, , name, w] of fl){
+    const el = $(sel);
+    el.hidden = !(v > 0.05);
+    el.style.height = pctOf(v) + '%';
+    el.querySelector('b').style.visibility = pctOf(v) / 100 * H >= 26 ? 'visible' : 'hidden';
+    el.setAttribute('aria-label', `${name} 월 ${won(v)}, 편집으로 이동`);
+    if (v > 0.05) topW = w;
+  }
+  const roof = $('#tRoof');
+  roof.hidden = !(tot > 0.05);
+  roof.style.width = topW ? `calc(${topW} + 8px)` : '0';
+  $('#tEmpty').hidden = tot > 0.05;
+  const g = $('#tGoal');
+  g.hidden = !(goal > 0);
+  g.style.bottom = pctOf(goal) + '%';
+  $('#tGoalTxt').textContent = '목표 ' + man(goal);
+
+  /* 치수 라벨: 각 층 가운데에 두고 겹치지 않게 밀어 올림 */
+  const labels = [
+    { el:$('#dF1'), c:pctOf(v1 / 2) / 100 * H, v:v1 },
+    { el:$('#dF2'), c:pctOf(v1 + v2 / 2) / 100 * H, v:v2 },
+    { el:$('#dF3'), c:pctOf(v1 + v2 + v3 / 2) / 100 * H, v:v3 },
+    { el:$('#dTot'), c:pctOf(tot) / 100 * H + 26, v:tot, tot:true }
+  ];
+  const GAP = 40;
+  let prev = -Infinity;
+  for (const L of labels){ L.c = Math.max(L.c, 20, prev + GAP); prev = L.c; }
+  const over = labels[3].c - (H - 22);
+  if (over > 0) for (const L of labels) L.c -= over;
+  for (const L of labels){
+    L.el.style.bottom = L.c + 'px';
+    L.el.classList.toggle('is-zero', !(L.v > 0.05) && !L.tot);
+    L.el.querySelector('strong').textContent = L.v > 0.05 ? '월 ' + won(L.v) : (L.tot ? '월 0원' : '비어 있음');
+  }
+  $('#tAge').textContent = selAge;
+  $('#tGround').textContent = `만 ${selAge}세 · ${selAge >= sim.ret ? '은퇴 ' + (selAge - sim.ret + 1) + '년차' : '은퇴 전'}`;
+  sky.setAttribute('aria-label', `${selAge}세 월 소득 입면도: 1층 연금 ${won(v1)}, 2층 이자 ${won(v2)}, 3층 배당+성장 ${won(v3)}, 합계 ${won(tot)}, 목표 ${won(goal)}`);
+}
+
+function renderReadout(){
+  const goal = Math.max(0, num(state.profile.goal));
+  const tot = at(sim.total, selAge);
+  $('#rAge').textContent = selAge;
+  $('#rTotal').textContent = tot >= 10000 ? man(tot).replace('만', '') : nf.format(Math.round(tot));
+  const pill = $('#rPill');
+  if (goal > 0){
+    const ratio = tot / goal;
+    const gap = goal - tot;
+    pill.className = 'pill ' + (gap <= 0.5 ? 'good' : 'warn');
+    pill.textContent = gap <= 0.5 ? `목표의 ${Math.round(ratio * 100)}%` : `월 ${won(gap)} 부족`;
+  } else { pill.className = 'pill none'; pill.textContent = '목표 미설정'; }
+  const parts = [];
+  parts.push(state.profile.tax ? '세후' : '세전');
+  parts.push(num(state.profile.infl) > 0 ? `물가 ${pct(num(state.profile.infl))} 차감한 오늘 돈 가치` : '오늘 돈 가치 고정');
+  $('#rSub').textContent = parts.join(' · ');
+  $('#fxRet').textContent = won(sim.atRet.f2 + sim.atRet.f3);
+  $('#fxAcct').textContent = won(sim.acctTotal);
+  $('#fxEndLabel').textContent = `${sim.end}세에 남는 자산`;
+  $('#fxEnd').textContent = won(sim.atEnd.f2 + sim.atEnd.f3);
+  $('#fxDone').textContent = sim.done + '세';
+}
+
+function netYieldFrac(){
+  let w = 0, s = 0;
+  for (const h of state.dividend){ const a = Math.max(0, num(h.amount)) + Math.max(0, num(h.monthly)) * 12; w += a; s += a * num(h.y); }
+  const y = w > 0 ? s / w : 4;
+  return { y: Math.max(0.5, y), net: Math.max(0.5, y) / 100 * (1 - (state.profile.tax ? TAX_FIN : 0)) };
+}
+
+function renderNotes(){
+  const notes = [];
+  const goal = Math.max(0, num(state.profile.goal));
+  const tot = a => at(sim.total, a);
+  const last = sim.end - 1;
+
+  if (goal > 0){
+    const ranges = []; let cur = null;
+    for (let a = sim.ret; a < sim.end; a++){
+      const gap = goal - tot(a);
+      if (gap > 0.5){ if (!cur){ cur = { a0:a, a1:a, sum:0, n:0 }; ranges.push(cur); } cur.a1 = a; cur.sum += gap; cur.n++; }
+      else cur = null;
+    }
+    let coveredDone = false;
+    for (const r of ranges.slice(0, 3)){
+      const span = r.a0 === r.a1 ? `${r.a0}세` : `${r.a0}~${r.a1}세`;
+      const avg = r.sum / r.n;
+      if (r.a1 < sim.done){
+        notes.push({ t:'warn', tag:'주의', h:`${span} 소득 크레바스`, b:`마지막 연금이 시작되는 ${sim.done}세 전까지 ${r.n}년 동안 목표보다 월 평균 ${won(avg)} 모자라요. 이 기간만 메우려면 약 ${won(r.sum * 12)}이 필요해요.` });
+      } else if (r.a0 <= sim.done){
+        coveredDone = true;
+        const ny = netYieldFrac();
+        const gap = goal - tot(sim.done);
+        notes.push({ t:'warn', tag:'부족', h:`${sim.done}세에도 월 ${won(gap)} 부족`, b:`배당률 ${pct(ny.y)}(세후 ${pct(ny.net * 100)}) 자산을 은퇴 때까지 약 ${won(gap * 12 / ny.net)} 더 쌓으면 채워져요.` });
+      } else {
+        const cause = sim.ends.find(e => e.age === r.a0);
+        notes.push({ t:'warn', tag:'주의', h:`${span}에 다시 월 평균 ${won(avg)} 부족`, b: cause ? `${cause.name} 수령이 ${cause.age}세에 끝나면서 층이 낮아져요. 수령 기간을 늘리면 고르게 받을 수 있어요.` : `이 무렵 소득이 목표 아래로 내려가요.` });
+      }
+    }
+    if (!coveredDone && tot(sim.done) > 0){
+      const extra = tot(sim.done) - goal;
+      notes.unshift({ t:'good', tag:'좋음', h:`${sim.done}세부터 목표의 ${Math.round(tot(sim.done) / goal * 100)}%`, b:`목표 월 ${won(goal)}보다 ${won(extra)} 여유가 있어요.` });
+    }
+  }
+
+  /* 세금 기준선 */
+  const finIdx = sim.finGross.findIndex(v => v > 2000);
+  if (finIdx >= 0){
+    notes.push({ t:'tax', tag:'세금', h:`${sim.age0 + finIdx}세부터 이자·배당이 연 2,000만원을 넘어요`, b:`금융소득종합과세 대상이 되면 다른 소득과 합산돼 세율이 오를 수 있어요. ISA나 연금계좌로 나눠 담는 방법을 검토해 보세요.` });
+  }
+  const privIdx = sim.privGross.findIndex(v => v > 1500);
+  if (privIdx >= 0){
+    notes.push({ t:'tax', tag:'세금', h:`${sim.age0 + privIdx}세 연금계좌 수령액이 연 ${won(sim.privGross[privIdx])}이에요`, b:`세액공제 받은 납입금과 운용수익에서 나온 연금이 연 1,500만원을 넘으면 16.5% 분리과세와 종합과세 중에서 골라야 해요. 퇴직금에서 나온 부분은 빠지니 실제 대상 금액은 더 적을 수 있어요. 수령 기간을 늘리면 한도 안으로 들어오기 쉬워요.` });
+  }
+
+  /* 물가와 2층 */
+  const f2r = at(sim.f2, sim.ret), f2e = at(sim.f2, last);
+  if (f2r > 0.5){
+    if (sim.infl > 0){
+      const drop = (1 - f2e / f2r) * 100;
+      if (drop > 1) notes.push({ t:'info', tag:'참고', h:`${last}세엔 2층이 오늘 돈 가치로 ${Math.round(drop)}% 줄어요`, b:`이자는 원금이 그대로라 물가 ${pct(sim.infl * 100)}만큼 해마다 힘이 빠져요. 배당이 자라는 3층이 이 부분을 받쳐줘요.` });
+    } else {
+      const alt = simulate(state, { infl:2 });
+      const a = at(alt.f2, alt.ret), b = at(alt.f2, alt.end - 1);
+      if (a > 0.5) notes.push({ t:'info', tag:'참고', h:'지금은 돈 가치를 오늘로 고정해서 보고 있어요', b:`물가를 2%로 넣으면 ${alt.end - 1}세 2층 이자는 오늘 돈 가치로 ${Math.round((1 - b / a) * 100)}% 줄어들어요. 위 조건에서 물가상승률을 바꿔 확인해 보세요.` });
+    }
+    const P = sim.atRet.f2;
+    let w = 0, s = 0;
+    for (const h of state.interest){ const m = sim.meta[h.id]; w += m.balRet; s += m.balRet * m.rate; }
+    const rNet = (w > 0 ? s / w : 0) / 100 * (1 - sim.tax);
+    const rr = Math.pow((1 + rNet) / (1 + sim.infl), 1 / 12) - 1;
+    const N = (sim.end - sim.ret) * 12;
+    const pay = Math.abs(rr) < 1e-9 ? P / N : P * rr / (1 - Math.pow(1 + rr, -N));
+    const extra = pay - f2r;
+    if (extra > 1) notes.push({ t:'info', tag:'참고', h:`2층 원금까지 ${sim.end}세까지 나눠 쓰면 월 +${won(extra)}`, b:`이자만 받을 때보다 더 쓸 수 있는 금액이에요. 대신 ${sim.end}세에 2층 원금 ${won(P)}은 모두 써서 없어져요.` });
+  }
+
+  /* 3층 흐름 */
+  const f3r = at(sim.f3, sim.ret), f3e = at(sim.f3, last);
+  if (f3r > 0.5){
+    const g = f3e / f3r;
+    if (g > 1.1) notes.push({ t:'good', tag:'좋음', h:`3층은 ${sim.ret}세 월 ${won(f3r)} → ${last}세 월 ${won(f3e)}`, b:'배당이 해마다 자라서 위층이 점점 높아져요.' });
+    else if (g < 0.95) notes.push({ t:'info', tag:'참고', h:`3층이 ${last}세엔 월 ${won(f3e)}로 낮아져요`, b:'배당이 거의 자라지 않는 종목(커버드콜·리츠 등)은 물가를 넣으면 실제 가치가 줄어요. 배당성장 종목을 섞으면 받쳐줄 수 있어요.' });
+  }
+
+  const ul = $('#notes');
+  ul.innerHTML = notes.length
+    ? notes.slice(0, 6).map(n => `<li class="note t-${n.t}"><span class="tag">${n.tag}</span><h4>${esc(n.h)}</h4><p>${esc(n.b)}</p></li>`).join('')
+    : `<li class="note t-info"><span class="tag">참고</span><h4>층을 쌓으면 여기에 설계 메모가 나와요</h4><p>소득 공백, 세금 기준선, 물가 영향을 짚어 드려요.</p></li>`;
+}
+
+function niceStep(max){
+  const raw = max / 4;
+  const p = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+  const n = raw / p;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+}
+
+function drawChart(){
+  const box = $('#chart');
+  const W = Math.max(300, box.clientWidth || 600);
+  const H = W < 560 ? 230 : 280;
+  const m = { l:48, r:12, t:22, b:28 };
+  const a0 = sim.view0, a1 = sim.end;
+  const n = a1 - a0;
+  const goal = Math.max(0, num(state.profile.goal));
+  const step = niceStep(Math.max(goal, sim.maxTotal, 10) * 1.08);
+  const ymax = Math.ceil(Math.max(goal, sim.maxTotal, 10) * 1.08 / step) * step;
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const x = a => m.l + (a - a0) / n * pw;
+  const y = v => m.t + (1 - v / ymax) * ph;
+  const vals = k => Array.from({ length:n }, (_, j) => at(sim[k], a0 + j));
+  const v1 = vals('f1'), v2 = vals('f2'), v3 = vals('f3');
+  const c1 = v1, c2 = v1.map((v, j) => v + v2[j]), c3 = c2.map((v, j) => v + v3[j]);
+  const area = (lo, up) => {
+    const pts = [];
+    for (let j = 0; j < n; j++){ pts.push(`${x(a0 + j).toFixed(1)},${y(up[j]).toFixed(1)}`, `${x(a0 + j + 1).toFixed(1)},${y(up[j]).toFixed(1)}`); }
+    for (let j = n - 1; j >= 0; j--){ pts.push(`${x(a0 + j + 1).toFixed(1)},${y(lo ? lo[j] : 0).toFixed(1)}`, `${x(a0 + j).toFixed(1)},${y(lo ? lo[j] : 0).toFixed(1)}`); }
+    return 'M' + pts.join('L') + 'Z';
+  };
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${a0}세부터 ${a1 - 1}세까지 층별 월 소득 계단 그래프">`;
+  s += `<defs><pattern id="gapHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--warn-soft)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--warn);stroke-width:2"/></pattern></defs>`;
+  for (let v = 0; v <= ymax + 1e-6; v += step){
+    s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--line);stroke-width:1"/>`;
+    s += `<text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${v === 0 ? '0' : man(v)}</text>`;
+  }
+  const j = selAge - a0;
+  s += `<rect x="${x(selAge)}" y="${m.t - 6}" width="${(pw / n).toFixed(1)}" height="${ph + 6}" style="fill:var(--ink);opacity:.07"/>`;
+  s += `<path d="${area(null, c1)}" style="fill:var(--f1);stroke:var(--surface);stroke-width:1"/>`;
+  s += `<path d="${area(c1, c2)}" style="fill:var(--f2);stroke:var(--surface);stroke-width:1"/>`;
+  s += `<path d="${area(c2, c3)}" style="fill:var(--f3);stroke:var(--surface);stroke-width:1"/>`;
+  if (goal > 0){
+    for (let k = 0; k < n; k++){
+      if (c3[k] < goal - 0.5) s += `<rect x="${x(a0 + k).toFixed(1)}" y="${y(goal).toFixed(1)}" width="${(pw / n).toFixed(1)}" height="${(y(c3[k]) - y(goal)).toFixed(1)}" fill="url(#gapHatch)" style="opacity:.85"/>`;
+    }
+    s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(goal)}" y2="${y(goal)}" style="stroke:var(--ink);stroke-width:1.5;stroke-dasharray:5 4"/>`;
+    s += `<text x="${W - m.r}" y="${y(goal) - 6}" text-anchor="end" style="fill:var(--ink);font-weight:600">목표 ${man(goal)}</text>`;
+  }
+  const every = n > 40 ? 10 : 5;
+  for (let a = a0; a < a1; a++){
+    if (a === a0 || a % every === 0){
+      if (a !== a0 && a - a0 < 3) continue;
+      s += `<text x="${(x(a) + pw / n / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle">${a}세</text>`;
+    }
+  }
+  if (j >= 0 && j < n){
+    const cx = x(selAge) + pw / n / 2;
+    const lbl = `${selAge}세 ${man(c3[j])}`;
+    const anchor = cx > W - 70 ? 'end' : cx < m.l + 50 ? 'start' : 'middle';
+    s += `<text x="${cx.toFixed(1)}" y="${m.t - 10}" text-anchor="${anchor}" style="fill:var(--ink);font-weight:700">${lbl}</text>`;
+  }
+  s += `<rect x="${m.l}" y="0" width="${pw}" height="${H}" fill="transparent" data-hit="1"/>`;
+  s += `</svg>`;
+  box.innerHTML = s;
+  box.dataset.l = m.l; box.dataset.pw = pw; box.dataset.w = W; box.dataset.a0 = a0; box.dataset.n = n;
+}
+
+function chartAgeFromEvent(e){
+  const box = $('#chart');
+  const svg = box.querySelector('svg');
+  if (!svg) return null;
+  const rect = svg.getBoundingClientRect();
+  const W = num(box.dataset.w);
+  const px = (e.clientX - rect.left) / rect.width * W;
+  const a = Math.floor(num(box.dataset.a0) + (px - num(box.dataset.l)) / num(box.dataset.pw) * num(box.dataset.n));
+  return Math.min(sim.end - 1, Math.max(sim.view0, a));
+}
+function setAge(a){
+  if (a == null || a === selAge) return;
+  selAge = a; selTouched = true;
+  $('#ageRange').value = a;
+  renderTower(); renderReadout(); drawChart(); renderFloorNow();
+}
+
+function renderFloorNow(){
+  $$('[data-now-age]').forEach(el => el.textContent = `${selAge}세 월 소득`);
+  $('#now-f1').textContent = won(at(sim.f1, selAge));
+  $('#now-f2').textContent = won(at(sim.f2, selAge));
+  $('#now-f3').textContent = won(at(sim.f3, selAge));
+}
+
+/* ---------------- 편집 행 ---------------- */
+function fld(k, label, val, unit, step, extra){
+  return `<label class="fld"><span>${label}</span><div class="in"><input type="number" inputmode="decimal" data-k="${k}" value="${esc(val)}" step="${step}" ${extra || ''}><em>${unit}</em></div></label>`;
+}
+function rowHead(h, kindTag){
+  return `<div class="row-top"><input class="row-name" data-k="name" value="${esc(h.name)}" aria-label="이름">${h.code ? `<span class="code">${esc(h.code)}</span>` : ''}${kindTag || ''}<button type="button" class="row-x" data-act="del">빼기</button></div>${h.sub ? `<p class="row-sub">${esc(h.sub)}</p>` : ''}`;
+}
+function rowHTML(kind, h){
+  let f = '';
+  if (kind === 'dividend'){
+    f = fld('amount', '지금 보유액', h.amount, '만원', 10, 'min="0"') + fld('monthly', '은퇴 전 월 적립', h.monthly, '만원', 5, 'min="0"') +
+        fld('y', '배당률', h.y, '%', 0.1) + fld('dgr', '배당 성장', h.dgr, '%/년', 0.5) + fld('pgr', '주가 성장', h.pgr, '%/년', 0.5);
+    return `<div class="row" data-id="${h.id}">${rowHead(h)}<div class="row-fields">${f}</div><p class="row-out" data-out></p></div>`;
+  }
+  if (kind === 'interest'){
+    f = fld('amount', '지금 금액', h.amount, '만원', 10, 'min="0"') + fld('monthly', '은퇴 전 월 적립', h.monthly, '만원', 5, 'min="0"') + fld('rate', '금리 (세전)', h.rate, '%', 0.1);
+    return `<div class="row" data-id="${h.id}">${rowHead(h)}<div class="row-fields">${f}</div><p class="row-out" data-out></p></div>`;
+  }
+  if (h.kind === 'fixed'){
+    f = fld('amount', '월 수령액 (오늘 가치)', h.amount, '만원', 5, 'min="0"') + fld('start', '받기 시작', h.start, '세', 1) + fld('years', '받는 기간 (0=평생)', h.years, '년', 1, 'min="0"') +
+        `<div class="row-check"><label class="toggle"><input type="checkbox" data-k="indexed" ${h.indexed ? 'checked' : ''}> 물가연동</label></div>`;
+    return `<div class="row" data-id="${h.id}">${rowHead(h, '<span class="kind fixed">정액형</span>')}<div class="row-fields">${f}</div><p class="row-out" data-out></p></div>`;
+  }
+  f = fld('bal', '지금 적립금', h.bal, '만원', 10, 'min="0"') + fld('monthly', '월 납입', h.monthly, '만원', 5, 'min="0"') + fld('r', '기대 수익률', h.r, '%/년', 0.5) +
+      fld('start', '받기 시작', h.start, '세', 1) + fld('years', '나눠 받는 기간', h.years, '년', 1, 'min="0"');
+  return `<div class="row" data-id="${h.id}">${rowHead(h, '<span class="kind acct">적립형</span>')}<div class="row-fields">${f}</div><p class="row-out" data-out></p></div>`;
+}
+const EMPTY_TXT = { dividend:'아직 비어 있는 층이에요. 배당주나 배당 ETF를 연동해 3층을 올려 보세요.', interest:'아직 비어 있는 층이에요. 예금이나 채권을 연동해 2층을 올려 보세요.', pension:'아직 비어 있는 층이에요. 국민연금부터 연동해 기초를 다져 보세요.' };
+function renderRows(kind){
+  const list = state[LIST_KEY[kind]];
+  const el = $('#rows-' + kind);
+  el.innerHTML = list.length ? list.map(h => rowHTML(kind, h)).join('') :
+    `<div class="empty">${EMPTY_TXT[kind]} <button type="button" class="btn ghost sm" data-pick="${kind}">+ 연동하기</button></div>`;
+}
+function renderRowOutputs(){
+  const ret = sim.ret, last = sim.end - 1;
+  for (const h of state.dividend){
+    const el = document.querySelector(`#rows-dividend .row[data-id="${h.id}"] [data-out]`); if (!el) continue;
+    const m = sim.meta[h.id];
+    const a = at(sim.item[h.id], ret), b = at(sim.item[h.id], last);
+    el.innerHTML = `${ret}세 평가액 <b>${won(m.valRet)}</b> → 월 <b>${won(a)}</b> · ${last}세 월 ${won(b)}${m.sold > 0.5 ? ` · 배당에 일부 매도 포함` : ''}`;
+  }
+  for (const h of state.interest){
+    const el = document.querySelector(`#rows-interest .row[data-id="${h.id}"] [data-out]`); if (!el) continue;
+    const m = sim.meta[h.id];
+    el.innerHTML = `${ret}세 원금 <b>${won(m.balRet)}</b> → 월 이자 <b>${won(at(sim.item[h.id], ret))}</b>${sim.tax ? ' (세후)' : ''}`;
+  }
+  for (const h of state.pensions){
+    const el = document.querySelector(`#rows-pension .row[data-id="${h.id}"] [data-out]`); if (!el) continue;
+    const m = sim.meta[h.id];
+    const per = num(h.years) > 0 ? `${m.start}~${m.start + Math.round(num(h.years)) - 1}세` : `${m.start}세부터 평생`;
+    if (m.start >= sim.end){ el.innerHTML = `받기 시작 나이가 계산 끝 나이(${sim.end}세) 뒤라서 탑에 들어가지 않아요.`; continue; }
+    if (h.kind === 'fixed'){
+      const endV = at(sim.item[h.id], last);
+      el.innerHTML = `${per} 월 <b>${won(num(h.amount))}</b>` + (!h.indexed && sim.infl > 0 ? ` · 물가연동이 아니라 ${last}세엔 오늘 가치로 ${won(endV)}` : '');
+    } else {
+      el.innerHTML = `${m.start}세 적립금 <b>${won(m.balAtStart)}</b> → ${per} 월 <b>${won(m.payNet)}</b>${sim.tax ? ' (세후)' : ''}`;
+    }
+  }
+}
+
+function bindRows(kind){
+  const el = $('#rows-' + kind);
+  el.addEventListener('input', e => {
+    const inp = e.target; const k = inp.dataset.k; if (!k) return;
+    const row = inp.closest('.row'); if (!row) return;
+    const item = state[LIST_KEY[kind]].find(x => x.id === row.dataset.id); if (!item) return;
+    item[k] = inp.type === 'checkbox' ? inp.checked : (k === 'name' ? inp.value : (inp.value === '' ? '' : Number(inp.value)));
+    touched(); update();
+  });
+  el.addEventListener('click', e => {
+    const del = e.target.closest('[data-act="del"]');
+    if (!del) return;
+    const row = del.closest('.row');
+    const list = state[LIST_KEY[kind]];
+    const idx = list.findIndex(x => x.id === row.dataset.id);
+    if (idx < 0) return;
+    const [removed] = list.splice(idx, 1);
+    renderRows(kind); touched(); update();
+    toast(`${removed.name}을(를) 뺐어요`, () => { list.splice(idx, 0, removed); renderRows(kind); touched(); update(); });
+  });
+}
+
+/* ---------------- 조건 ---------------- */
+const PROFILE_FIELDS = [['#pAge','age'],['#pRetire','retire'],['#pEnd','end'],['#pGoal','goal'],['#pInfl','infl']];
+function renderProfile(){
+  for (const [sel, k] of PROFILE_FIELDS) $(sel).value = state.profile[k];
+  $('#pTax').checked = !!state.profile.tax;
+  $('#f3Drip').checked = state.f3.drip !== false;
+  $$('input[name="wd"]').forEach(r => r.checked = num(r.value) === num(state.f3.wd));
+  $('#exampleBanner').hidden = !state.example;
+}
+function renderProfileErr(){
+  const p = state.profile, msgs = [];
+  if (num(p.retire) < num(p.age)) msgs.push('은퇴 나이는 현재 나이 이상이어야 해요');
+  if (num(p.end) <= num(p.retire)) msgs.push('계산 끝 나이는 은퇴 나이보다 커야 해요');
+  const el = $('#pErr');
+  el.hidden = !msgs.length; el.textContent = msgs.join(' · ');
+}
+
+/* ---------------- 연동 목록 ---------------- */
+let pk = { kind:null, cat:'all' };
+function openPicker(kind){
+  pk = { kind, cat:'all' };
+  const C = CATALOG[kind];
+  $('#pkTitle').innerHTML = `<span class="fe-badge" style="background:var(--${kind === 'dividend' ? 'f3' : kind === 'interest' ? 'f2' : 'f1'});color:var(--on-${kind === 'dividend' ? 'f3' : kind === 'interest' ? 'f2' : 'f1'})">${C.badge}</span>${esc(C.title)}`;
+  $('#pkSearch').value = '';
+  $('#pkSearch').hidden = kind === 'pension';
+  $('#aiOut').innerHTML = '';
+  $('#aiQ').value = '';
+  $('#pkAi').hidden = !(sampleFn && kind !== 'pension');
+  $('#pkFoot').textContent = kind === 'pension'
+    ? '국민연금 예상액은 국민연금공단에서 조회한 예상연금월액(현재가치)을 넣으면 가장 정확해요.'
+    : '참고값은 2025~26년 무렵의 대략치예요. 추가한 뒤 실제 수치로 고치세요.';
+  renderPicker();
+  const dlg = $('#picker');
+  if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
+  if (kind !== 'pension') setTimeout(() => $('#pkSearch').focus(), 30);
+}
+function metricText(kind, t){
+  if (kind === 'dividend') return `배당 ${pct(t.y)} · 성장 ${pct(t.dgr)}`;
+  if (kind === 'interest') return `연 ${pct(t.rate)}`;
+  if (t.kind === 'fixed') return `월 ${won(t.amount)} · ${t.start}세`;
+  return `수익 ${pct(t.r)} · ${t.start}세`;
+}
+function renderPicker(){
+  const C = CATALOG[pk.kind];
+  $('#pkCats').innerHTML = C.cats.map(([k, l]) => `<button type="button" class="chip" data-cat="${k}" aria-pressed="${pk.cat === k}">${l}</button>`).join('');
+  const q = $('#pkSearch').value.trim().toLowerCase();
+  const items = C.items.map((t, i) => ({ t, i })).filter(({ t }) =>
+    (pk.cat === 'all' || t.cat === pk.cat || t.cat === 'custom') &&
+    (!q || [t.name, t.code, t.sub].join(' ').toLowerCase().includes(q) || t.cat === 'custom'));
+  $('#pkList').innerHTML = items.map(({ t, i }) => `<li class="pk-item"><h4>${esc(t.name)}${t.code ? `<span class="code">${esc(t.code)}</span>` : ''}</h4><button type="button" class="btn ghost sm pk-add" data-i="${i}">추가</button><p><span class="pk-metric">${metricText(pk.kind, t)}</span> · ${esc(t.sub)}</p></li>`).join('');
+}
+function addFromTemplate(kind, t){
+  const item = fromTemplate(kind, t);
+  state[LIST_KEY[kind]].push(item);
+  renderRows(kind); touched(); update();
+  return item;
+}
+
+/* Claude에게 참고값 묻기 (sample) */
+let sampleFn = null, aiCtl = null;
+async function initSample(){
+  const c = window.claude;
+  if (!c || typeof c.use !== 'function') return;
+  try { sampleFn = await c.use('sample'); } catch (e) { sampleFn = null; }
+  if (sampleFn && $('#picker').open && pk.kind !== 'pension') $('#pkAi').hidden = false;
+}
+const clampN = (v, lo, hi) => Math.min(hi, Math.max(lo, Math.round(num(v) * 10) / 10));
+async function aiLookup(){
+  const q = $('#aiQ').value.trim();
+  if (!q || !sampleFn) return;
+  const kind = pk.kind;
+  const out = $('#aiOut');
+  aiCtl = new AbortController();
+  $('#aiGo').disabled = true; $('#aiStop').hidden = false;
+  out.textContent = 'Claude가 찾는 중이에요… 보통 수십 초 걸려요.';
+  const shape = kind === 'dividend'
+    ? '{"found":true,"name":"표시 이름","code":"티커 또는 종목코드","sub":"한 줄 설명(운용사·국가·배당 주기)","y":현재 배당수익률(연 %, 세전),"dgr":장기 배당성장률(연 %),"pgr":장기 주가성장률 기대치(연 %),"note":"투자자가 알아둘 점 한 줄"}'
+    : '{"found":true,"name":"표시 이름","sub":"한 줄 설명(기관·만기·예금자보호 여부)","rate":세전 연 금리(%),"note":"알아둘 점 한 줄"}';
+  const prompt = `한국 개인투자자의 노후 월소득 계산기에 넣을 참고값이 필요합니다.
+상품: "${q}"
+종류: ${kind === 'dividend' ? '배당주, 배당 ETF, 리츠' : '이자 상품(예금, 채권, CMA, 발행어음 등)'}
+알고 있는 가장 최근 정보로 대략적인 수치를 보수적으로 추정하고, 숫자는 소수점 한 자리로 적어 주세요.
+아래 형식의 JSON 객체 하나로만 답하세요:
+${shape}
+어떤 상품인지 특정할 수 없으면 {"found":false,"note":"이유 한 줄"} 로 답하세요.`;
+  try {
+    const r = await sampleFn.json(prompt, { signal:aiCtl.signal, modelTier:'default' });
+    if (!r || r.found === false || !r.name){ out.textContent = (r && r.note) ? `찾지 못했어요: ${r.note}` : '찾지 못했어요. 이름을 조금 다르게 적어 보세요.'; return; }
+    const t = kind === 'dividend'
+      ? { name:String(r.name).slice(0, 40), code:String(r.code || '').slice(0, 16), sub:'Claude 추정 · ' + String(r.sub || '').slice(0, 60), y:clampN(r.y, 0, 30), dgr:clampN(r.dgr, -10, 30), pgr:clampN(r.pgr, -20, 30) }
+      : { name:String(r.name).slice(0, 40), sub:'Claude 추정 · ' + String(r.sub || '').slice(0, 60), rate:clampN(r.rate, 0, 20) };
+    out.innerHTML = `<div class="pk-item"><h4>${esc(t.name)}${t.code ? `<span class="code">${esc(t.code)}</span>` : ''}</h4><button type="button" class="btn sm pk-add" id="aiAdd">추가</button><p><span class="pk-metric">${metricText(kind, t)}</span> · ${esc(t.sub)}</p></div>${r.note ? `<p style="margin:0">${esc(String(r.note).slice(0, 140))}</p>` : ''}<p style="margin:4px 0 0;color:var(--faint)">Claude가 알고 있는 정보로 낸 추정치예요. 최신 공시로 꼭 확인하세요.</p>`;
+    $('#aiAdd').onclick = () => { addFromTemplate(kind, t); $('#aiAdd').textContent = '추가됨'; $('#aiAdd').dataset.done = '1'; $('#aiAdd').disabled = true; };
+  } catch (e) {
+    const code = e && e.code;
+    if (code === 'cancelled') out.textContent = '';
+    else if (['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed'].includes(code)){ out.textContent = ''; $('#pkAi').hidden = true; sampleFn = null; }
+    else if (code === 'rate_limited') out.textContent = '요청이 많아요. 잠시 뒤에 다시 물어봐 주세요.';
+    else if (code === 'invalid_json') out.textContent = '답을 읽지 못했어요. 한 번 더 물어봐 주세요.';
+    else out.textContent = '연결이 잠시 끊겼어요. 다시 물어봐 주세요.';
+  } finally {
+    $('#aiGo').disabled = false; $('#aiStop').hidden = true; aiCtl = null;
+  }
+}
+
+/* ---------------- 토스트 ---------------- */
+let toastTimer = 0, undoFn = null;
+function toast(msg, undo){
+  $('#toastMsg').textContent = msg;
+  undoFn = undo || null;
+  $('#toastUndo').hidden = !undo;
+  $('#toast').hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('#toast').hidden = true; undoFn = null; }, undo ? 6000 : 3000);
+}
+
+/* ---------------- 연결 ---------------- */
+function renderAll(){
+  renderProfile();
+  renderRows('dividend'); renderRows('interest'); renderRows('pension');
+  recompute();
+  setSave(state.example ? 'example' : (cloudRef ? 'cloud' : 'local'));
+}
+
+function bind(){
+  for (const [sel, k] of PROFILE_FIELDS){
+    $(sel).addEventListener('input', e => { state.profile[k] = e.target.value === '' ? '' : Number(e.target.value); touched(); update(); });
+  }
+  $('#pTax').addEventListener('change', e => { state.profile.tax = e.target.checked; touched(); update(); });
+  $('#f3Drip').addEventListener('change', e => { state.f3.drip = e.target.checked; touched(); update(); });
+  $$('input[name="wd"]').forEach(r => r.addEventListener('change', e => { state.f3.wd = num(e.target.value); touched(); update(); }));
+  $$('[data-goal]').forEach(b => b.addEventListener('click', () => { state.profile.goal = num(b.dataset.goal); $('#pGoal').value = state.profile.goal; touched(); update(); }));
+  ['dividend','interest','pension'].forEach(bindRows);
+
+  document.addEventListener('click', e => {
+    const p = e.target.closest('[data-pick]');
+    if (p) openPicker(p.dataset.pick);
+    const go = e.target.closest('[data-go]');
+    if (go){ const t = document.getElementById(go.dataset.go); if (t) t.scrollIntoView({ behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start' }); }
+  });
+
+  $('#ageRange').addEventListener('input', e => setAge(num(e.target.value)));
+  const chart = $('#chart');
+  let dragging = false;
+  chart.addEventListener('pointerdown', e => { dragging = true; try { chart.setPointerCapture(e.pointerId); } catch (_) {} setAge(chartAgeFromEvent(e)); });
+  chart.addEventListener('pointermove', e => { if (dragging) setAge(chartAgeFromEvent(e)); });
+  const stop = () => { dragging = false; };
+  chart.addEventListener('pointerup', stop); chart.addEventListener('pointercancel', stop);
+
+  $('#btnBlank').addEventListener('click', () => { state = blankPlan(state.profile); selTouched = false; touched(); renderAll(); toast('빈 설계로 시작해요. 층마다 상품을 연동해 보세요.'); });
+  $('#btnExample').addEventListener('click', () => { state = examplePlan(); selTouched = false; renderAll(); toast('예시 설계를 불러왔어요. 숫자를 바꾸면 내 설계로 저장돼요.'); });
+  $('#btnReset').addEventListener('click', () => { $('#resetConfirm').hidden = false; $('#btnReset').hidden = true; });
+  $('#btnResetNo').addEventListener('click', () => { $('#resetConfirm').hidden = true; $('#btnReset').hidden = false; });
+  $('#btnResetYes').addEventListener('click', () => {
+    state = blankPlan(); selTouched = false; touched(); renderAll();
+    $('#resetConfirm').hidden = true; $('#btnReset').hidden = false;
+    toast('모두 지웠어요');
+  });
+
+  const dlg = $('#picker');
+  $('#pkClose').addEventListener('click', () => dlg.close ? dlg.close() : dlg.removeAttribute('open'));
+  dlg.addEventListener('close', () => { if (aiCtl) aiCtl.abort(); });
+  dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+  $('#pkSearch').addEventListener('input', renderPicker);
+  $('#pkCats').addEventListener('click', e => { const c = e.target.closest('[data-cat]'); if (!c) return; pk.cat = c.dataset.cat; renderPicker(); });
+  $('#pkList').addEventListener('click', e => {
+    const b = e.target.closest('.pk-add'); if (!b) return;
+    const t = CATALOG[pk.kind].items[num(b.dataset.i)];
+    addFromTemplate(pk.kind, t);
+    b.textContent = '추가됨'; b.dataset.done = '1';
+  });
+  $('#aiGo').addEventListener('click', aiLookup);
+  $('#aiQ').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); aiLookup(); } });
+  $('#aiStop').addEventListener('click', () => { if (aiCtl) aiCtl.abort(); });
+  $('#toastUndo').addEventListener('click', () => { const f = undoFn; $('#toast').hidden = true; undoFn = null; if (f) f(); });
+
+  let rz = 0;
+  window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (sim){ renderTower(); drawChart(); } }, 120); });
+}
+
+const saved = loadLocal();
+if (saved) state = normalize(saved);
+bind();
+renderAll();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { renderTower(); drawChart(); });
+initCloud();
+initSample();
+})();
+</script>
+<!-- artifact:end -->
+</body>
+</html>
