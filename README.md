@@ -18,6 +18,17 @@
 - **용어 사전**: 용어마다 한 줄 뜻, 비유, 숫자 예시
 - 결과 데이터 CSV 내려받기
 
+## Claude 앱에서 바로 쓰기 (웹 버전)
+
+`web/` 폴더는 설치 없이 Claude 앱 안에서 열리는 웹 버전이에요. 브라우저 안에서 모든 계산을 하고,
+인터넷에서 시세를 직접 받을 수 없어서 자주 쓰는 47종목의 시세(`data/prices.json`)를 함께 실어요.
+
+- 시세 받기: GitHub Actions의 **Update price data** 워크플로가 Yahoo Finance에서 받아 `data/prices.json`에 저장해요.
+  종목 목록(`backtester/catalog.py`)을 바꾸면 자동으로 돌고, Actions 탭에서 직접 실행할 수도 있어요.
+- 페이지 만들기: `python scripts/build_web.py` → `web/index.html`
+  (`web/template.html` + `web/engine.js` + 파이썬 모듈의 종목·용어 설명을 합쳐요)
+- 계산은 `web/engine.js`가 하고, `tests/test_web_engine.py`가 파이썬 엔진과 결과가 같은지 확인해요.
+
 ## 실행하기
 
 ```bash
@@ -53,6 +64,8 @@ pytest
 | `backtester/charts.py` | 그래프 |
 | `backtester/catalog.py` | 자주 쓰는 종목 목록과 예시 포트폴리오 |
 | `backtester/formatting.py` | `1억 2,345만 원` 같은 숫자 표시 |
+| `web/` | Claude 앱용 웹 버전 (template.html, engine.js → index.html) |
+| `scripts/fetch_prices.py` | 웹 버전에 싣는 시세 받기 (GitHub Actions에서 실행) |
 
 ## 계산 방법
 
