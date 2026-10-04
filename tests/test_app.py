@@ -71,3 +71,10 @@ def test_start_after_end_is_an_error():
     at = run_app()
     at.date_input[0].set_value(at.date_input[1].value).run()
     assert any("시작일" in e.value for e in at.error)
+
+
+def test_settings_are_on_the_main_page():
+    """휴대폰에서는 사이드바가 작은 버튼 뒤에 숨어 찾기 어렵다. 설정은 본문에 있어야 한다."""
+    at = run_app()
+    assert not at.sidebar.children
+    assert at.selectbox[0].label == "예시에서 고르기"

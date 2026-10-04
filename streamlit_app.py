@@ -46,9 +46,21 @@ def cached_prices(tickers: tuple[str, ...], start: date, end: date, currency: st
     return load_prices(list(tickers), start, end, currency)
 
 
-# ---------------------------------------------------------------- 사이드바: 입력
-with st.sidebar:
-    st.header("① 포트폴리오 만들기")
+st.title("📈 포트폴리오 백테스터")
+st.caption("과거 데이터로 내 투자 방법을 미리 시험해 보세요. 한국·미국 주식과 ETF를 섞어서 넣을 수 있어요.")
+tab_main, tab_terms, tab_help = st.tabs(["📊 백테스트", "📖 용어 사전", "❓ 사용법 · 주의사항"])
+
+# ---------------------------------------------------------------- 설정 (화면 맨 위)
+# 사이드바는 휴대폰에서 작은 버튼 뒤에 숨어 찾기 어려워서, 설정을 본문 맨 위에 둔다.
+with tab_main:
+    settings = st.container(border=True)
+with settings:
+    st.markdown("#### ⚙️ 설정")
+    st.caption("여기서 설정을 바꾸면 아래 결과가 바로 다시 계산돼요.")
+    col_portfolio, col_period, col_options = st.columns([1.3, 1, 1], gap="large")
+
+with col_portfolio:
+    st.markdown("**① 포트폴리오 만들기**")
     preset_name = st.selectbox("예시에서 고르기", [p.name for p in PRESETS])
     preset = next(p for p in PRESETS if p.name == preset_name)
     st.caption(preset.description)
@@ -90,10 +102,10 @@ with st.sidebar:
         )
         st.caption("목록에 없어도 Yahoo Finance에 있는 한국·미국 종목이면 대부분 쓸 수 있어요.")
 
-    st.header("② 기간과 금액")
-    col1, col2 = st.columns(2)
-    start = col1.date_input("시작일", date(2010, 1, 1), min_value=date(1990, 1, 1), max_value=date.today())
-    end = col2.date_input("종료일", date.today(), min_value=date(1990, 1, 1), max_value=date.today())
+with col_period:
+    st.markdown("**② 기간과 금액**")
+    start = st.date_input("시작일", date(2010, 1, 1), min_value=date(1990, 1, 1), max_value=date.today())
+    end = st.date_input("종료일", date.today(), min_value=date(1990, 1, 1), max_value=date.today())
     currency = st.radio(
         "기준 통화", list(CURRENCY_LABELS), format_func=CURRENCY_LABELS.get, horizontal=True,
         help=HELP["base_currency"],
@@ -108,7 +120,8 @@ with st.sidebar:
     )
     st.caption(f"= {money(initial, currency)}")
 
-    st.header("③ 세부 설정")
+with col_options:
+    st.markdown("**③ 세부 설정**")
     rebalance = st.selectbox(
         "리밸런싱 (비중 다시 맞추기)", list(REBALANCE_LABELS), format_func=REBALANCE_LABELS.get,
         help=HELP["rebalance"],
@@ -125,18 +138,9 @@ with st.sidebar:
     )
 
 
-# ---------------------------------------------------------------- 본문
-st.title("📈 포트폴리오 백테스터")
-st.caption(
-    "과거 데이터로 내 투자 방법을 미리 시험해 보세요. 한국·미국 주식과 ETF를 섞어서 넣을 수 있어요. "
-    "왼쪽에서 설정을 바꾸면 결과가 바로 다시 계산돼요."
-)
-tab_result, tab_terms, tab_help = st.tabs(["📊 결과", "📖 용어 사전", "❓ 사용법 · 주의사항"])
-
-
 def render_results() -> None:
     if weights_pct.empty:
-        st.info("왼쪽 표에 종목코드와 비중을 입력해 주세요.")
+        st.info("위 설정의 표에 종목코드와 비중을 입력해 주세요.")
         return
     if abs(total_pct - 100) > 1e-6:
         st.error(f"비중 합계가 100%가 되어야 해요. 지금은 {total_pct:g}%예요.")
@@ -218,42 +222,42 @@ def render_results() -> None:
     )
 
     # 핵심 숫자
-    c = st.columns(4)
-    c[0].metric(
+    row = st.container(horizontal=True)  # 화면이 좁으면 다음 줄로 넘어간다
+    row.metric(
         "최종 금액", money(m.final, currency),
         versus(m.final, bench_value("final"), lambda d: money(d, currency)),
         delta_description=vs, help=HELP["final"], border=True,
     )
-    c[1].metric(
+    row.metric(
         "연평균 수익률 (CAGR)", pct(m.cagr), versus(m.cagr, bench_value("cagr"), pp),
         delta_description=vs, help=HELP["cagr"], border=True,
     )
-    c[2].metric(
+    row.metric(
         "최대 낙폭 (MDD)", pct(m.max_drawdown), versus(m.max_drawdown, bench_value("max_drawdown"), pp),
         delta_description=vs, help=HELP["mdd"], border=True,
     )
-    c[3].metric(
+    row.metric(
         "샤프 비율", ratio(m.sharpe), versus(m.sharpe, bench_value("sharpe"), lambda d: f"{d:+.2f}"),
         delta_description=vs, help=HELP["sharpe"], border=True,
     )
 
-    c = st.columns(4)
-    c[0].metric(
+    row = st.container(horizontal=True)  # 화면이 좁으면 다음 줄로 넘어간다
+    row.metric(
         "총 수익률", pct(m.total_return, signed=True),
         versus(m.total_return, bench_value("total_return"), lambda d: pp(d, 0)),
         delta_description=vs, help=HELP["total_return"], border=True,
     )
-    c[1].metric(
+    row.metric(
         "변동성", pct(m.volatility), versus(m.volatility, bench_value("volatility"), pp),
         delta_color="inverse", delta_description=vs, help=HELP["volatility"], border=True,
     )
     longest = m.longest_drawdown
-    c[2].metric(
+    row.metric(
         "가장 긴 회복 기간", duration(longest.days(m.end)) if longest else "없음",
         "아직 회복 중" if longest and longest.recovery is None else None,
         delta_color="off", delta_arrow="off", help=HELP["recovery"], border=True,
     )
-    c[3].metric(
+    row.metric(
         "최악의 해", pct(m.worst_year[1], signed=True) if m.worst_year else "-",
         f"{m.worst_year[0]}년" if m.worst_year else None,
         delta_color="off", delta_arrow="off", help=HELP["worst_year"], border=True,
@@ -346,7 +350,7 @@ def render_results() -> None:
         )
 
 
-with tab_result:
+with tab_main:
     render_results()
 
 with tab_terms:
@@ -366,13 +370,13 @@ with tab_help:
     st.markdown(
         """
 #### 사용법
-1. **왼쪽 메뉴**에서 예시 포트폴리오를 고르거나 '**직접 만들기**'를 선택하세요. (휴대폰에서는 왼쪽 위 `»` 버튼)
+1. **📊 백테스트** 탭 맨 위의 **⚙️ 설정**에서 예시 포트폴리오를 고르거나 '**직접 만들기**'를 선택하세요.
 2. 표에 **종목코드**와 **비중**(%)을 넣으세요. 비중 합계는 100%여야 해요.
    - 한국 종목·ETF: 6자리 코드 (예: `069500` KODEX 200, `005930` 삼성전자)
    - 미국 종목·ETF: 영문 티커 (예: `SPY`, `QQQ`, `AAPL`)
    - 행을 추가하려면 표 아래 `+`, 지우려면 행을 선택하고 휴지통 아이콘을 누르세요.
 3. **기간, 투자금, 리밸런싱 주기**를 정하세요.
-4. **결과** 탭에서 숫자와 그래프를 보세요. 모르는 말은 (?) 아이콘에 마우스를 올리거나 **용어 사전** 탭을 보세요.
+4. 설정 바로 아래에 나오는 숫자와 그래프를 보세요. 모르는 말은 (?) 아이콘에 마우스를 올리거나 **용어 사전** 탭을 보세요.
 
 #### 이런 걸 시험해 보세요
 - 'S&P500 하나만'과 '주식 60 : 채권 40'의 **최대 낙폭** 차이
