@@ -130,7 +130,6 @@ PRESETS: list[Preset] = [
 WEB_EXTRA: dict[str, tuple[str, str, str]] = {
     # 미국 ETF: 지수
     "IVV": ("iShares Core S&P 500", "S&P500", "미국 ETF"),
-    "SPLG": ("SPDR Portfolio S&P 500", "S&P500, 보수가 아주 낮음", "미국 ETF"),
     "QQQM": ("Invesco NASDAQ 100", "나스닥100, QQQ보다 보수가 낮음", "미국 ETF"),
     "RSP": ("Invesco S&P 500 Equal Weight", "S&P500 동일 비중", "미국 ETF"),
     "VUG": ("Vanguard Growth", "미국 대형 성장주", "미국 ETF"),
@@ -245,12 +244,12 @@ KO_ALIASES: dict[str, str] = {
     "UBER": "우버", "ABNB": "에어비앤비", "PYPL": "페이팔", "BAC": "뱅크오브아메리카", "WFC": "웰스파고",
     "GS": "골드만삭스", "MS": "모건스탠리", "BA": "보잉", "CAT": "캐터필러", "GE": "GE 에어로스페이스",
     "LMT": "록히드마틴", "PFE": "화이자", "MRK": "머크", "ABBV": "애브비", "T": "AT&T", "VZ": "버라이즌",
-    "O": "리얼티인컴 월배당", "F": "포드", "GM": "제너럴모터스", "COIN": "코인베이스", "HOOD": "로빈후드",
+    "O": "리얼티인컴 월배당 리츠", "F": "포드", "GM": "제너럴모터스", "COIN": "코인베이스", "HOOD": "로빈후드",
     "SMCI": "슈퍼마이크로", "DELL": "델", "PM": "필립모리스", "MO": "알트리아", "ANET": "아리스타",
     "TSM": "TSMC 대만반도체", "ASML": "ASML", "ARM": "ARM 암", "BABA": "알리바바", "PDD": "테무 핀둬둬",
     "MELI": "메르카도리브레", "SHOP": "쇼피파이", "NVO": "노보노디스크 위고비", "SONY": "소니", "TM": "토요타",
     "CPNG": "쿠팡", "MSTR": "마이크로스트래티지 스트래티지", "IONQ": "아이온큐", "RGTI": "리게티", "RKLB": "로켓랩",
     "OKLO": "오클로", "SMR": "뉴스케일", "SOFI": "소파이", "RIVN": "리비안", "NIO": "니오", "SNOW": "스노우플레이크",
     "SPOT": "스포티파이", "SPY": "에스앤피 S&P500", "QQQ": "나스닥", "SCHD": "슈드 배당", "JEPI": "제피 배당",
-    "JEPQ": "제피큐 배당", "TQQQ": "티큐 레버리지 나스닥 3배", "SOXL": "속슬 반도체 3배", "TLT": "미국채 장기채",
+    "JEPQ": "제피큐 배당", "TQQQ": "티큐 레버리지 나스닥 3배", "SOXL": "속슬 반도체 3배", "TLT": "미국채 장기채", "VNQ": "리츠 부동산", "XLRE": "리츠 부동산",
 }

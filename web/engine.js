@@ -278,7 +278,7 @@ const Engine = (() => {
   }
 
   // ---------------------------------------------------------------- 시세 파일 -> 계산용 가격표
-  // data: prices.json, base: 'KRW'|'USD'. 모든 종목(과 필요하면 환율)이 데이터가 있는 날부터 자른다.
+  // data: {dates, series: {코드: {start, close, currency}}} (KRW=X 포함), base: 'KRW'|'USD'. 모든 종목(과 필요하면 환율)이 데이터가 있는 날부터 자른다.
   function buildPrices(data, tickers, base, startDate, endDate) {
     const fx = data.series["KRW=X"];
     const series = tickers.map((t) => data.series[t]);

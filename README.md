@@ -21,12 +21,15 @@
 ## Claude 앱에서 바로 쓰기 (웹 버전)
 
 `web/` 폴더는 설치 없이 Claude 앱 안에서 열리는 웹 버전이에요. 브라우저 안에서 모든 계산을 하고,
-인터넷에서 시세를 직접 받을 수 없어서 자주 쓰는 47종목의 시세(`data/prices.json`)를 함께 실어요.
+인터넷에서 시세를 직접 받을 수 없어서 종목 목록과 시세(`data/web/`)를 함께 실어요.
 
-- 시세 받기: GitHub Actions의 **Update price data** 워크플로가 Yahoo Finance에서 받아 `data/prices.json`에 저장해요.
-  종목 목록(`backtester/catalog.py`)을 바꾸면 자동으로 돌고, Actions 탭에서 직접 실행할 수도 있어요.
+- 담긴 종목: 미국 S&P500 전 종목, 인기 미국 ETF·주식, 코스피 시가총액 상위 300·코스닥 상위 150 종목, 한국 ETF 시가총액 상위 300개.
+  종목 칸을 누르면 이름·코드·한국어 별명(예: 애플, 엔비디아)으로 찾을 수 있어요.
+- 시세 받기: GitHub Actions의 **Update price data** 워크플로가 `scripts/fetch_universe.py`로 받아 `data/web/`에 저장해요.
+  종목 목록(`backtester/catalog.py`)이나 스크립트를 바꾸면 자동으로 돌고, Actions 탭에서 직접 실행할 수도 있어요.
+  시세는 종목 7개씩 묶은 작은 파일(`data/web/c/`)로 나눠, 페이지가 고른 종목이 든 파일만 받아요.
 - 페이지 만들기: `python scripts/build_web.py` → `web/index.html`
-  (`web/template.html` + `web/engine.js` + 파이썬 모듈의 종목·용어 설명을 합쳐요)
+  (`web/template.html` + `web/engine.js` + 파이썬 모듈의 예시 포트폴리오·용어 설명을 합쳐요)
 - 계산은 `web/engine.js`가 하고, `tests/test_web_engine.py`가 파이썬 엔진과 결과가 같은지 확인해요.
 
 ## 실행하기
@@ -65,7 +68,7 @@ pytest
 | `backtester/catalog.py` | 자주 쓰는 종목 목록과 예시 포트폴리오 |
 | `backtester/formatting.py` | `1억 2,345만 원` 같은 숫자 표시 |
 | `web/` | Claude 앱용 웹 버전 (template.html, engine.js → index.html) |
-| `scripts/fetch_prices.py` | 웹 버전에 싣는 시세 받기 (GitHub Actions에서 실행) |
+| `scripts/fetch_universe.py` | 웹 버전에 싣는 종목 목록과 시세 받기 (GitHub Actions에서 실행) |
 
 ## 계산 방법
 
