@@ -38,7 +38,13 @@ console.log(JSON.stringify({
 JS_BUILD = """
 const E = require(process.argv[1]);
 const p = JSON.parse(require("fs").readFileSync(0, "utf8"));
-const r = E.buildPrices(p.data, p.tickers, p.base, p.start, p.end);
+const dates = E.decodeDates(p.index.base, p.index.days);
+const series = { "KRW=X": { start: p.index.fx.s, close: E.decodeLevels(p.index.fx.d), currency: "KRW" } };
+for (const row of p.index.tickers) {
+  const packed = p.chunks[row[6]][row[0]];
+  series[row[0]] = { start: packed.s, close: E.decodeLevels(packed.d), currency: row[5] };
+}
+const r = E.buildPrices({ dates, series }, p.tickers, p.base, p.start, p.end);
 console.log(JSON.stringify({ dates: r.dates, prices: Object.fromEntries(
   Object.entries(r.prices).map(([k, v]) => [k, Array.from(v)])), limitedBy: r.limitedBy }));
 """
@@ -81,20 +87,32 @@ def test_js_engine_matches_python(market, rebalance):
     assert js["explain"] == python_text
 
 
-def test_build_prices_matches_loader(monkeypatch):
+def test_js_reads_packed_prices(monkeypatch):
+    """scripts/fetch_universe.py가 만든 파일을 웹 엔진이 같은 가격으로 풀고, 환율·시작일을 맞추는지."""
     sys.path.insert(0, str(ROOT / "scripts"))
-    import fetch_prices
+    import fetch_universe
+    import pandas as pd
 
-    monkeypatch.setattr(fetch_prices, "START", date(2014, 1, 1))
-    monkeypatch.setattr(fetch_prices, "TICKERS", {"SPY": None, "LATE": None})  # LATE: 2015년 상장 가짜 종목
-    data = fetch_prices.build(fetch=fake_close, name_of=lambda s: "")
-    js = node(JS_BUILD, {"data": data, "tickers": ["SPY", "LATE"], "base": "KRW",
-                         "start": "2014-01-01", "end": "2026-12-31"})
-    expected = load_prices(["SPY", "LATE"], date(2014, 1, 1), date.today(), "KRW", fetch=fake_close).prices
-    assert js["dates"][0] == expected.index[0].strftime("%Y-%m-%d")  # LATE가 상장한 2015-06-01
+    monkeypatch.setattr(fetch_universe, "CHUNK", 2)
+    items = [{"code": c, "name": c, "kind": k, "desc": "", "alias": "", "symbol": s}
+             for c, k, s in [("SPY", "미국 ETF", "SPY"), ("LATE", "미국 주식", "LATE"), ("069500", "한국 ETF", "069500.KS")]]
+    closes = {it["symbol"]: fake_close(it["symbol"], "2014-01-01", "2016-12-31") for it in items}
+    index, chunks = fetch_universe.build(items, closes, fake_close("KRW=X", "2014-01-01", "2016-12-31"))
+    js = node(JS_BUILD, {"index": index, "chunks": chunks, "tickers": ["SPY", "LATE", "069500"], "base": "KRW",
+                         "start": "2014-01-01", "end": "2016-12-31"})
+
+    dates = pd.Timestamp(index["base"]) + pd.to_timedelta(np.cumsum(index["days"]), unit="D")
+    assert js["dates"][0] == "2015-06-01"  # LATE가 상장한 날부터
     assert js["limitedBy"]["label"] == "LATE"
-    for t in ("SPY", "LATE"):
-        np.testing.assert_allclose(js["prices"][t], expected[t].to_numpy(), rtol=1e-5)  # 6자리로 저장
+    first = list(dates).index(pd.Timestamp("2015-06-01"))
+    fx = fetch_universe.decode(index["fx"]["d"])
+    def native(code):
+        packed = chunks[[r[0] for r in index["tickers"]].index(code) // 2][code]
+        return fetch_universe.decode(packed["d"]), packed["s"]
+    for code, usd in (("SPY", True), ("069500", False)):
+        values, start = native(code)
+        expected = [values[i - start] * (fx[i - index["fx"]["s"]] if usd else 1) for i in range(first, len(dates))]
+        np.testing.assert_allclose(js["prices"][code], expected, rtol=1e-9)
 
 
 def test_built_page_is_up_to_date():

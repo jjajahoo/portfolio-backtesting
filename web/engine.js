@@ -262,6 +262,21 @@ const Engine = (() => {
     return out;
   }
 
+  // ---------------------------------------------------------------- 시세 파일 풀기 (scripts/fetch_universe.py)
+  // 가격은 log(가격)×10000 정수의 첫 값과 차이들로, 날짜는 기준일부터 지난 날 수의 차이들로 저장돼 있다.
+  const SCALE = 10000;
+  function decodeLevels(d) {
+    const out = new Float64Array(d.length);
+    let acc = 0;
+    for (let i = 0; i < d.length; i++) { acc += d[i]; out[i] = Math.exp(acc / SCALE); }
+    return out;
+  }
+  function decodeDates(base, days) {
+    const t0 = Date.parse(base);
+    let acc = 0;
+    return days.map((d) => { acc += d; return new Date(t0 + acc * DAY).toISOString().slice(0, 10); });
+  }
+
   // ---------------------------------------------------------------- 시세 파일 -> 계산용 가격표
   // data: prices.json, base: 'KRW'|'USD'. 모든 종목(과 필요하면 환율)이 데이터가 있는 날부터 자른다.
   function buildPrices(data, tickers, base, startDate, endDate) {
@@ -298,7 +313,7 @@ const Engine = (() => {
 
   return {
     rebalancePositions, runBacktest, drawdown, drawdownPeriods, periodReturns, computeMetrics,
-    money, pct, pp, ratio, duration, ym, sharpeGrade, explain, buildPrices,
+    money, pct, pp, ratio, duration, ym, sharpeGrade, explain, buildPrices, decodeLevels, decodeDates,
   };
 })();
 
