@@ -1,0 +1,1294 @@
+<title>KOSPI 가격 시뮬레이터</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: an instrument panel. Control strip on top (sticky on wide screens), a row of readouts,
+   then tabbed analysis panes. Korean market convention: up = red, down = blue; hypothetical = orange. */
+:root {
+  --bg: #f2f4f7;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --ink: #131a2a;
+  --ink-2: #47526a;
+  --muted: #76819a;
+  --line: #dbe0e8;
+  --accent: #1d4ed8;
+  --accent-soft: rgba(29, 78, 216, 0.10);
+  --on-accent: #ffffff;
+  --hypo: #e3592a;
+  --hypo-soft: rgba(227, 89, 42, 0.12);
+  --up: #d7263d;
+  --down: #1f6fd6;
+  --warn-bg: #fff4e5;
+  --warn-ink: #8a4b00;
+  --ma5: #15a374;
+  --ma20: #d99a00;
+  --ma60: #d6588f;
+  --ma120: #6250d6;
+  --font-ui: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1218; --surface: #161c25; --surface-2: #1d2531; --ink: #e9edf3; --ink-2: #b6c0ce; --muted: #8592a6;
+    --line: #2a3442; --accent: #7aa2ff; --accent-soft: rgba(122, 162, 255, 0.14); --on-accent: #0e1218; --hypo: #ff7a45;
+    --hypo-soft: rgba(255, 122, 69, 0.16); --up: #ff6470; --down: #5d9dff; --warn-bg: #3a2a12; --warn-ink: #ffc98a;
+    --ma5: #2bc48f; --ma20: #e5ad1e; --ma60: #e877a6; --ma120: #9488f0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1218; --surface: #161c25; --surface-2: #1d2531; --ink: #e9edf3; --ink-2: #b6c0ce; --muted: #8592a6;
+  --line: #2a3442; --accent: #7aa2ff; --accent-soft: rgba(122, 162, 255, 0.14); --on-accent: #0e1218; --hypo: #ff7a45;
+  --hypo-soft: rgba(255, 122, 69, 0.16); --up: #ff6470; --down: #5d9dff; --warn-bg: #3a2a12; --warn-ink: #ffc98a;
+  --ma5: #2bc48f; --ma20: #e5ad1e; --ma60: #e877a6; --ma120: #9488f0;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.55; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 16px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 16px; font-weight: 600; }
+h3 { font-size: 14px; font-weight: 600; }
+p { margin: 0; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: 12.5px; }
+.up { color: var(--up); } .down { color: var(--down); } .hypo { color: var(--hypo); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.source { font-size: 12.5px; color: var(--muted); }
+.source b { color: var(--ink-2); font-weight: 600; }
+.banner { border-radius: var(--radius); padding: 10px 14px; background: var(--warn-bg); color: var(--warn-ink); font-size: 13px; }
+
+/* control strip */
+.controls { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px;
+  display: grid; grid-template-columns: minmax(200px, 1.1fr) minmax(220px, 2fr) minmax(200px, 1.3fr); gap: 14px 22px; align-items: start; }
+@media (min-width: 960px) { .controls.sticky { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; box-shadow: 0 6px 18px -14px rgba(0,0,0,.35); } }
+@media (max-width: 820px) { .controls { grid-template-columns: 1fr; } }
+.ctl-label { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; }
+.target-box { display: flex; align-items: center; gap: 8px; }
+.target-box input { width: 100%; min-width: 0; font-family: var(--font-num); font-size: 26px; font-weight: 600; padding: 4px 10px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.target-box .unit { color: var(--muted); font-size: 13px; }
+.chg-badge { font-family: var(--font-num); font-weight: 600; font-size: 13px; }
+input[type=range] { width: 100%; accent-color: var(--hypo); }
+.ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-family: var(--font-num); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 13px; }
+.btn:hover { border-color: var(--accent); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.btn.preset { font-family: var(--font-num); min-width: 54px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 5px 10px; cursor: pointer; font-size: 13px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+/* readouts */
+.tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 960px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; min-width: 0; }
+.tile .k { font-size: 12px; color: var(--ink-2); }
+.tile .v { font-family: var(--font-num); font-size: 22px; font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .s { font-size: 12px; color: var(--muted); font-family: var(--font-num); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile.lead { border-color: var(--hypo); background: linear-gradient(var(--hypo-soft), var(--hypo-soft)), var(--surface); }
+
+/* tabs */
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tabs a { padding: 8px 12px; text-decoration: none; color: var(--ink-2); border-bottom: 2px solid transparent; white-space: nowrap; font-weight: 500; }
+.tabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--hypo); }
+.pane { display: grid; gap: 16px; }
+.grid-2 { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .grid-2 { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th { font-weight: 500; color: var(--muted); font-size: 12px; }
+th:first-child, td:first-child { text-align: left; }
+td.text, th.text { text-align: left; white-space: normal; }
+td .num, td.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+tr.is-current td { background: var(--accent-soft); font-weight: 600; }
+tr.is-target td { background: var(--hypo-soft); font-weight: 600; }
+tbody tr.clickable { cursor: pointer; }
+tbody tr.clickable:hover td { background: var(--surface-2); }
+.pill { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11.5px; background: var(--surface-2); color: var(--ink-2); }
+.pill.hot { background: rgba(215, 38, 61, .12); color: var(--up); }
+.pill.cold { background: rgba(31, 111, 214, .12); color: var(--down); }
+
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 12px; }
+.field { display: grid; gap: 4px; font-size: 12.5px; color: var(--ink-2); }
+.field input, .field select { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--surface-2); font-family: var(--font-num); min-width: 0; width: 100%; }
+.field .hint { font-size: 11.5px; color: var(--muted); }
+.chart { width: 100%; height: 440px; }
+.chart.tall { height: 760px; }
+@media (max-width: 600px) { .chart { height: 360px; } .chart.tall { height: 640px; } }
+ul.events { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+ul.events .date { font-family: var(--font-num); color: var(--muted); margin-right: 6px; }
+textarea { width: 100%; min-height: 120px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--surface-2); font-family: var(--font-num); font-size: 12.5px; }
+.drop { border: 1.5px dashed var(--line); border-radius: var(--radius); padding: 18px; text-align: center; display: grid; gap: 8px; justify-items: center; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.note { font-size: 12.5px; color: var(--muted); }
+.msg { font-size: 13px; }
+.msg.err { color: var(--up); }
+.msg.ok { color: var(--ma5); }
+.prose { max-width: 70ch; display: grid; gap: 10px; }
+.prose table { font-size: 12.5px; }
+.prose td, .prose th { white-space: normal; text-align: left; }
+.empty { display: grid; gap: 12px; }
+.empty h2 { font-size: 18px; }
+ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+code { font-family: var(--font-num); font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.1/echarts.min.js"></script>
+<script type="application/json" id="embedded-data">null</script>
+
+<div class="wrap">
+  <header class="top">
+    <h1>KOSPI 가격 시뮬레이터</h1>
+    <p class="source" id="source-line">데이터 없음</p>
+  </header>
+  <div class="banner" id="example-banner" hidden>지금 보이는 숫자는 <b>예시(가상) 데이터</b>입니다. 실제 KOSPI가 아닙니다. 데이터 탭에서 실제 데이터를 불러오세요.</div>
+
+  <section class="controls" id="controls" hidden aria-label="가상 KOSPI 설정">
+    <div>
+      <div class="ctl-label"><label for="target">가상 KOSPI</label><span class="chg-badge" id="chg-badge"></span></div>
+      <div class="target-box"><input id="target" type="number" inputmode="decimal" step="1"><span class="unit">pt</span></div>
+      <p class="small muted" id="base-line" style="margin-top:4px"></p>
+    </div>
+    <div>
+      <div class="ctl-label"><label for="pct">현재 대비 변동률</label><span class="num" id="pct-out"></span></div>
+      <input id="pct" type="range" min="-50" max="50" step="0.1">
+      <div class="ticks"><span>-50%</span><span>-25%</span><span>0</span><span>+25%</span><span>+50%</span></div>
+      <div class="row" style="margin-top:8px" id="presets"></div>
+    </div>
+    <div>
+      <div class="ctl-label"><label for="days">도달 기간</label><span class="num" id="days-out"></span></div>
+      <input id="days" type="range" min="1" max="120" step="1">
+      <div class="ticks"><span>다음 날</span><span>1개월</span><span>3개월</span><span>6개월</span></div>
+      <div class="row" style="margin-top:8px">
+        <div class="seg" role="group" aria-label="경로 모양">
+          <button type="button" id="path-line" aria-pressed="true">일정한 비율로</button>
+          <button type="button" id="path-random" aria-pressed="false">변동성 반영</button>
+        </div>
+        <button type="button" class="btn" id="reroll" disabled>다른 경로</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="tiles" id="tiles" hidden aria-label="요약"></section>
+
+  <nav class="tabs" id="tabs" aria-label="보기">
+    <a href="#valuation" data-tab="valuation">밸류에이션</a>
+    <a href="#technical" data-tab="technical">기술적 지표</a>
+    <a href="#levels" data-tab="levels">주요 가격대</a>
+    <a href="#data" data-tab="data">데이터</a>
+    <a href="#help" data-tab="help">설명</a>
+  </nav>
+
+  <!-- 밸류에이션 -->
+  <section class="pane" id="pane-valuation" hidden>
+    <div class="card">
+      <div class="card-head"><h2>밸류에이션 가정</h2><span class="note" id="assume-note"></span></div>
+      <div class="form-grid">
+        <label class="field">현재 PER (배)<input id="a-per" type="number" step="0.01" min="0" placeholder="예: 17.2"><span class="hint" id="h-per"></span></label>
+        <label class="field">현재 PBR (배)<input id="a-pbr" type="number" step="0.01" min="0" placeholder="예: 1.30"><span class="hint" id="h-pbr"></span></label>
+        <label class="field">현재 배당수익률 (%)<input id="a-dy" type="number" step="0.01" min="0" placeholder="예: 1.60"><span class="hint" id="h-dy"></span></label>
+        <label class="field">선행 PER (배, 선택)<input id="a-fper" type="number" step="0.01" min="0" placeholder="컨센서스"><span class="hint">12개월 예상 이익 기준</span></label>
+        <label class="field">국고채 10년 금리 (%)<input id="a-bond" type="number" step="0.01" min="0" placeholder="예: 3.00"><span class="hint">일드갭 계산용</span></label>
+        <label class="field">명목 GDP (조원)<input id="a-gdp" type="number" step="1" min="0"><span class="hint">2024년 약 2,550조원</span></label>
+        <label class="field">KOSPI 시가총액 (조원)<input id="a-mcap" type="number" step="1" min="0" placeholder="선택"><span class="hint" id="h-mcap"></span></label>
+      </div>
+      <p class="note">기업 이익·순자산·배당은 그대로이고 지수만 움직인다고 가정합니다. 빈칸인 항목은 계산하지 않습니다.</p>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h2>현재 vs 가상</h2>
+          <label class="field" style="grid-auto-flow:column;align-items:center;gap:6px">비교 기간
+            <select id="years"><option value="3">3년</option><option value="5" selected>5년</option><option value="10">10년</option></select></label>
+        </div>
+        <div class="tbl-wrap"><table id="val-table"></table></div>
+        <p class="note" id="val-note"></p>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>목표 배수 → KOSPI 환산</h2><div class="seg" role="group" aria-label="기준 지표" id="rev-seg"></div></div>
+        <p class="note" id="rev-note"></p>
+        <div class="tbl-wrap"><table id="rev-table"></table></div>
+        <div class="row" style="align-items:end">
+          <label class="field" style="flex:1 1 140px"><span id="want-label">원하는 배수</span><input id="want" type="number" step="0.01" min="0"></label>
+          <button type="button" class="btn primary" id="want-go" style="flex:1 1 180px"></button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>밴드 차트</h2><div class="seg" role="group" aria-label="밴드 종류" id="band-seg"></div></div>
+      <div id="band-chart" class="chart" role="img" aria-label="PBR 또는 PER 밴드 차트"></div>
+      <p class="note" id="band-note"></p>
+    </div>
+  </section>
+
+  <!-- 기술적 지표 -->
+  <section class="pane" id="pane-technical" hidden>
+    <div class="card">
+      <div class="card-head"><h2>가격 · RSI · MACD · 스토캐스틱</h2><span class="note">손가락으로 넓히거나 아래 막대로 기간을 조절하세요</span></div>
+      <div id="tech-chart" class="chart tall" role="img" aria-label="KOSPI와 기술적 지표 차트, 가상 구간은 주황색"></div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h2 id="cmp-title">지표 비교</h2>
+        <div class="tbl-wrap"><table id="cmp-table"></table></div>
+      </div>
+      <div class="card">
+        <h2>가상 구간에서 생기는 신호</h2>
+        <ul class="events" id="events"></ul>
+        <p class="note" id="path-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 주요 가격대 -->
+  <section class="pane" id="pane-levels" hidden>
+    <div class="card">
+      <div class="card-head"><h2>다음 거래일 종가가 얼마면 어떤 신호가 나오나</h2></div>
+      <p class="note" id="levels-note"></p>
+      <div class="tbl-wrap"><table id="levels-table"></table></div>
+    </div>
+  </section>
+
+  <!-- 데이터 -->
+  <section class="pane" id="pane-data" hidden>
+    <div class="card empty" id="empty-card" hidden>
+      <h2>KOSPI 일별 데이터를 넣으면 시작합니다</h2>
+      <p>이 페이지는 가짜 숫자를 보여 주지 않습니다. 아래 방법 중 하나로 실제 KOSPI 데이터를 불러오세요. 불러온 데이터는 이 브라우저에만 저장됩니다.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>현재 데이터</h2><button type="button" class="btn" id="clear-data">불러온 데이터 지우기</button></div>
+      <p class="msg" id="data-status">불러온 데이터가 없습니다.</p>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h2>파일 올리기 (CSV)</h2>
+        <div class="drop" id="drop">
+          <p>CSV 파일을 끌어다 놓거나</p>
+          <label class="btn primary" for="file">파일 고르기</label>
+          <input id="file" type="file" accept=".csv,.txt,text/csv" multiple hidden>
+          <p class="note">가격 파일과 PER·PBR 파일을 함께 올리면 날짜로 합칩니다</p>
+        </div>
+        <h3>KRX 정보데이터시스템에서 받기</h3>
+        <ol class="steps small">
+          <li><a href="https://data.krx.co.kr" target="_blank" rel="noopener">data.krx.co.kr</a> 접속 (로그인 필요할 수 있음)</li>
+          <li><b>[11003] 개별지수 시세 추이</b>에서 지수 <b>코스피</b>, 기간을 3~10년으로 정하고 CSV 다운로드</li>
+          <li><b>[11007] PER/PBR/배당수익률</b>에서 같은 지수·기간으로 CSV 다운로드 (밸류에이션 이력용, 선택)</li>
+          <li>두 파일을 여기에 올리기</li>
+        </ol>
+        <p class="note">인베스팅닷컴·야후 파이낸스의 과거 데이터 CSV처럼 <b>날짜</b>와 <b>종가</b> 열이 있으면 어떤 파일이든 됩니다.</p>
+      </div>
+      <div class="card">
+        <h2>표 붙여넣기</h2>
+        <p class="note">엑셀이나 웹페이지의 시세 표를 복사해 붙여넣으세요. 첫 줄에 <code>날짜</code>, <code>종가</code> 같은 제목이 있어야 합니다. 고가·저가·PER·PBR·배당수익률·시가총액 열은 있으면 씁니다.</p>
+        <label for="paste" class="small muted">붙여넣을 표</label>
+        <textarea id="paste" placeholder="날짜,종가,고가,저가&#10;2026-10-29,…&#10;2026-10-30,…"></textarea>
+        <div class="row"><button type="button" class="btn primary" id="paste-go">불러오기</button><button type="button" class="btn" id="example-go">예시(가상) 데이터로 둘러보기</button></div>
+        <p class="msg" id="import-msg" role="status"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 설명 -->
+  <section class="pane" id="pane-help" hidden>
+    <div class="card prose">
+      <h2>이 페이지가 하는 일</h2>
+      <p>가상 KOSPI와 도달 기간을 정하면, 마지막 실제 종가에서 그 값까지 가는 가상 일봉을 만들어 실제 가격 뒤에 붙이고 모든 지표를 처음부터 다시 계산합니다. 경로는 매일 같은 비율로 움직이는 직선형과, 최근 60거래일 변동성만큼 오르내리다 목표에서 끝나는 무작위형 중에서 고릅니다. 가상 거래일은 주말만 뺍니다 (공휴일 미반영).</p>
+      <h3>밸류에이션 (이익·순자산·배당은 그대로, 지수만 움직인다고 가정)</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th>지표</th><th>계산</th><th>읽는 법</th></tr>
+        <tr><td>PER</td><td>지수 ÷ 1포인트당 이익</td><td>이익 대비 몇 배에 거래되는지. KRX 지수 PER은 공시된 연간 실적 기준이라 실적 변화가 늦게 반영됩니다</td></tr>
+        <tr><td>선행 PER</td><td>지수 ÷ 12개월 예상 이익</td><td>증권사 컨센서스를 직접 입력</td></tr>
+        <tr><td>PBR</td><td>지수 ÷ 1포인트당 순자산</td><td>1배 = 장부가치</td></tr>
+        <tr><td>배당수익률</td><td>1포인트당 배당 ÷ 지수</td><td>지수가 오르면 낮아짐</td></tr>
+        <tr><td>일드갭</td><td>이익수익률(1/PER) − 국고채 10년</td><td>클수록 채권 대비 주식이 싸다는 해석</td></tr>
+        <tr><td>시가총액/GDP</td><td>시가총액 ÷ 명목 GDP</td><td>경제 규모 대비 증시 크기 (버핏지수)</td></tr>
+      </table></div>
+      <h3>기술적 지표 (국내 HTS 기본 설정)</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th>지표</th><th>설정</th><th>흔히 쓰는 기준</th></tr>
+        <tr><td>이동평균·이격도</td><td>5·20·60·120일</td><td>이격도 = 종가 ÷ 이동평균 × 100</td></tr>
+        <tr><td>RSI</td><td>14일, Wilder 평활</td><td>70 이상 과매수, 30 이하 과매도</td></tr>
+        <tr><td>MACD</td><td>12·26일 지수이동평균, 시그널 9일</td><td>오실레이터(MACD − 시그널) &gt; 0 이면 상승 우위</td></tr>
+        <tr><td>볼린저밴드</td><td>20일, 2표준편차</td><td>%B &gt; 1 상단 돌파, &lt; 0 하단 이탈</td></tr>
+        <tr><td>스토캐스틱 슬로우</td><td>14·3·3</td><td>80 이상 과매수, 20 이하 과매도</td></tr>
+        <tr><td>투자심리선</td><td>10일 중 상승일 비율</td><td>75% 이상 과열, 25% 이하 침체</td></tr>
+        <tr><td>52주 고점 대비</td><td>250거래일 최고가</td><td>−10% 조정, −20% 약세장</td></tr>
+      </table></div>
+      <h3>주요 가격대</h3>
+      <p>다음 거래일 종가 하나만 바뀐다고 보고, 각 지표가 기준선에 닿는 가격을 식으로 풀어 낸 값입니다 (RSI·MACD·이동평균은 1차식, 볼린저밴드는 2차식). 행을 누르면 그 가격으로 시뮬레이션합니다.</p>
+      <p class="note">모든 결과는 가정에 따른 계산이며 투자 판단의 근거가 아닙니다.</p>
+    </div>
+  </section>
+</div>
+
+<script id="sim-core">
+/* 순수 계산: 기술적 지표, 가상 경로, 다음 거래일 가격 역산, 밸류에이션. DOM 을 쓰지 않는다. */
+const Sim = (() => {
+  const MA = [5, 20, 60, 120];
+  const CROSS = [[5, 20], [20, 60], [60, 120]];
+  const RSI_N = 14, MF = 12, MS = 26, MSIG = 9, BBN = 20, BBK = 2, SN = 14, SS = 3, PSY = 10, YEAR = 250;
+  const fin = Number.isFinite;
+  const alpha = (span) => 2 / (span + 1);
+
+  function rollMean(a, n) {
+    const out = new Array(a.length).fill(NaN);
+    for (let i = n - 1; i < a.length; i++) {
+      let s = 0, ok = true;
+      for (let j = i - n + 1; j <= i; j++) { if (!fin(a[j])) { ok = false; break; } s += a[j]; }
+      if (ok) out[i] = s / n;
+    }
+    return out;
+  }
+  function rollStd0(a, n) {
+    const out = new Array(a.length).fill(NaN);
+    for (let i = n - 1; i < a.length; i++) {
+      let s = 0;
+      for (let j = i - n + 1; j <= i; j++) s += a[j];
+      const m = s / n;
+      let q = 0;
+      for (let j = i - n + 1; j <= i; j++) q += (a[j] - m) ** 2;
+      out[i] = Math.sqrt(q / n);
+    }
+    return out;
+  }
+  function rollExt(a, n, fn, minPeriods) {
+    const out = new Array(a.length).fill(NaN);
+    for (let i = 0; i < a.length; i++) {
+      const lo = Math.max(0, i - n + 1);
+      if (i - lo + 1 < minPeriods) continue;
+      let v = a[lo];
+      for (let j = lo + 1; j <= i; j++) v = fn(v, a[j]);
+      out[i] = v;
+    }
+    return out;
+  }
+  function ema(a, span) {
+    const k = alpha(span), out = new Array(a.length);
+    out[0] = a[0];
+    for (let i = 1; i < a.length; i++) out[i] = out[i - 1] + k * (a[i] - out[i - 1]);
+    return out;
+  }
+
+  function technicals(rows) {
+    const n = rows.length;
+    const c = rows.map((r) => r.c);
+    const h = rows.map((r) => (fin(r.h) ? r.h : r.c));
+    const l = rows.map((r) => (fin(r.l) ? r.l : r.c));
+    const T = { c };
+    for (const m of MA) {
+      T['ma' + m] = rollMean(c, m);
+      T['disp' + m] = c.map((v, i) => (v / T['ma' + m][i]) * 100);
+    }
+    const a = 1 / RSI_N;
+    T.rsiUp = new Array(n).fill(NaN); T.rsiDn = new Array(n).fill(NaN); T.rsi = new Array(n).fill(NaN);
+    let up = 0, dn = 0;
+    for (let i = 1; i < n; i++) {
+      const d = c[i] - c[i - 1], u = Math.max(d, 0), w = Math.max(-d, 0);
+      if (i === 1) { up = u; dn = w; } else { up = (1 - a) * up + a * u; dn = (1 - a) * dn + a * w; }
+      if (i >= RSI_N) { T.rsiUp[i] = up; T.rsiDn[i] = dn; T.rsi[i] = up + dn > 0 ? (100 * up) / (up + dn) : 50; }
+    }
+    T.emaF = ema(c, MF); T.emaS = ema(c, MS);
+    T.macd = c.map((_, i) => T.emaF[i] - T.emaS[i]);
+    T.sig = ema(T.macd, MSIG);
+    T.hist = T.macd.map((v, i) => v - T.sig[i]);
+    const mid = rollMean(c, BBN), sd = rollStd0(c, BBN);
+    T.bbMid = mid;
+    T.bbUp = mid.map((m, i) => m + BBK * sd[i]);
+    T.bbLow = mid.map((m, i) => m - BBK * sd[i]);
+    T.pctb = c.map((v, i) => { const w = T.bbUp[i] - T.bbLow[i]; return w > 0 ? (v - T.bbLow[i]) / w : NaN; });
+    T.bbw = mid.map((m, i) => ((T.bbUp[i] - T.bbLow[i]) / m) * 100);
+    const ll = rollExt(l, SN, Math.min, SN), hh = rollExt(h, SN, Math.max, SN);
+    const fk = c.map((v, i) => (hh[i] > ll[i] ? ((v - ll[i]) / (hh[i] - ll[i])) * 100 : NaN));
+    T.stK = rollMean(fk, SS); T.stD = rollMean(T.stK, SS);
+    const upFlag = c.map((v, i) => (i === 0 ? NaN : v > c[i - 1] ? 1 : 0));
+    T.psy = rollMean(upFlag, PSY).map((v) => v * 100);
+    T.high52 = rollExt(h, YEAR, Math.max, 1);
+    T.low52 = rollExt(l, YEAR, Math.min, 1);
+    T.fromHigh = c.map((v, i) => (v / T.high52[i] - 1) * 100);
+    return T;
+  }
+
+  function dailyVol(rows, window = 60) {
+    const r = [];
+    for (let i = Math.max(1, rows.length - window); i < rows.length; i++) r.push(Math.log(rows[i].c / rows[i - 1].c));
+    if (r.length <= 5) return 0.01;
+    const m = r.reduce((s, x) => s + x, 0) / r.length;
+    return Math.sqrt(r.reduce((s, x) => s + (x - m) ** 2, 0) / (r.length - 1));
+  }
+
+  function rng(seed) {
+    let t = seed >>> 0;
+    const uni = () => { t += 0x6d2b79f5; let x = t; x = Math.imul(x ^ (x >>> 15), x | 1); x ^= x + Math.imul(x ^ (x >>> 7), x | 61); return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+    return () => { let u = 0; while (u === 0) u = uni(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * uni()); };
+  }
+
+  function nextWeekdays(lastIso, count) {
+    const out = [], d = new Date(lastIso + 'T00:00:00Z');
+    while (out.length < count) {
+      d.setUTCDate(d.getUTCDate() + 1);
+      const w = d.getUTCDay();
+      if (w !== 0 && w !== 6) out.push(d.toISOString().slice(0, 10));
+    }
+    return out;
+  }
+
+  function makePath(last, target, days, lastIso, vol = 0, seed = 1) {
+    days = Math.max(1, Math.round(days));
+    const norm = rng(seed), logs = [];
+    const step = Math.log(target / last);
+    for (let i = 1; i <= days; i++) logs.push(Math.log(last) + (i / days) * step);
+    if (vol > 0 && days > 1) {
+      let w = 0; const walk = [];
+      for (let i = 0; i < days; i++) { w += norm() * vol; walk.push(w); }
+      for (let i = 0; i < days; i++) logs[i] += walk[i] - ((i + 1) / days) * walk[days - 1];
+    }
+    const close = logs.map(Math.exp); close[days - 1] = target;
+    const dates = nextWeekdays(lastIso, days);
+    return close.map((cl, i) => {
+      const o = i === 0 ? last : close[i - 1];
+      let hi = Math.max(o, cl), lo = Math.min(o, cl);
+      if (vol > 0) { hi *= Math.exp(Math.abs(norm() * vol * 0.5)); lo *= Math.exp(-Math.abs(norm() * vol * 0.5)); }
+      return { d: dates[i], o, h: hi, l: lo, c: cl, hypo: true };
+    });
+  }
+
+  function simulate(rows, target, days, vol = 0, seed = 1) {
+    const last = rows[rows.length - 1];
+    const all = rows.map((r) => ({ d: r.d, o: r.o, h: r.h, l: r.l, c: r.c, hypo: false }))
+      .concat(makePath(last.c, target, days, last.d, vol, seed));
+    return { rows: all, T: technicals(all) };
+  }
+
+  function describe(key, T, i) {
+    const v = T[key][i], c = T.c[i];
+    if (!fin(v)) return '';
+    if (/^ma\d+$/.test(key)) return c >= v ? '종가가 위' : '종가가 아래';
+    if (key.startsWith('disp')) return v >= 100 ? '평균보다 위' : '평균보다 아래';
+    if (key === 'rsi') return v >= 70 ? '과매수' : v <= 30 ? '과매도' : '중립';
+    if (key === 'macd') return v >= 0 ? '0선 위' : '0선 아래';
+    if (key === 'hist') return v >= 0 ? '시그널 위' : '시그널 아래';
+    if (key === 'pctb') return v > 1 ? '상단 돌파' : v < 0 ? '하단 이탈' : '밴드 안';
+    if (key === 'stK') return v >= 80 ? '과매수' : v <= 20 ? '과매도' : '중립';
+    if (key === 'psy') return v >= 75 ? '과열' : v <= 25 ? '침체' : '중립';
+    if (key === 'fromHigh') return v >= -0.005 ? '52주 신고가' : v <= -20 ? '약세장' : v <= -10 ? '조정' : '고점 부근';
+    return '';
+  }
+
+  const INDICATORS = [
+    ['c', 'KOSPI 종가', 2, ''],
+    ...MA.map((m) => ['ma' + m, `${m}일 이동평균`, 2, '']),
+    ...MA.map((m) => ['disp' + m, `${m}일 이격도`, 1, '%']),
+    ['rsi', 'RSI(14)', 1, ''],
+    ['macd', 'MACD(12,26)', 2, ''],
+    ['sig', 'MACD 시그널(9)', 2, ''],
+    ['hist', 'MACD 오실레이터', 2, ''],
+    ['bbUp', '볼린저 상단(20,2)', 2, ''],
+    ['bbLow', '볼린저 하단', 2, ''],
+    ['pctb', '볼린저 %B', 2, ''],
+    ['bbw', '볼린저 밴드폭', 1, '%'],
+    ['stK', '스토캐스틱 %K', 1, ''],
+    ['stD', '스토캐스틱 %D', 1, ''],
+    ['psy', '투자심리선(10)', 0, '%'],
+    ['high52', '52주 최고', 2, ''],
+    ['fromHigh', '52주 최고 대비', 1, '%'],
+  ];
+
+  function pathEvents(sim) {
+    const { rows, T } = sim;
+    const first = rows.findIndex((r) => r.hypo);
+    if (first < 0) return [];
+    const ev = [];
+    const cross = (series, upText, downText, level = 0) => {
+      for (let i = first; i < rows.length; i++) {
+        const a = series(i - 1) - level, b = series(i) - level;
+        if (!fin(a) || !fin(b) || Math.sign(a) === Math.sign(b) || b === 0) continue;
+        const text = b > 0 ? upText : downText;
+        if (text) ev.push([rows[i].d, text, b > 0 ? 'up' : 'down']);
+      }
+    };
+    for (const [a, b] of CROSS) cross((i) => T['ma' + a][i] - T['ma' + b][i], `골든크로스: ${a}일선이 ${b}일선 위로`, `데드크로스: ${a}일선이 ${b}일선 아래로`);
+    cross((i) => T.c[i] - T.ma120[i], '120일선 회복', '120일선 이탈');
+    cross((i) => T.hist[i], 'MACD 시그널 상향 교차', 'MACD 시그널 하향 교차');
+    cross((i) => T.macd[i], 'MACD 0선 상향 돌파', 'MACD 0선 하향 이탈');
+    cross((i) => T.rsi[i], 'RSI 70 돌파 (과매수 진입)', 'RSI 70 아래로 (과매수 해소)', 70);
+    cross((i) => T.rsi[i], 'RSI 30 위로 (과매도 탈출)', 'RSI 30 이탈 (과매도 진입)', 30);
+    cross((i) => T.fromHigh[i], '', '52주 고점 대비 -10% (조정 국면)', -10);
+    cross((i) => T.fromHigh[i], '', '52주 고점 대비 -20% (약세장 기준)', -20);
+    for (let i = first; i < rows.length; i++) {
+      if (T.c[i] > T.high52[i - 1]) { ev.push([rows[i].d, '52주 신고가 경신', 'up']); break; }
+    }
+    return ev.sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0));
+  }
+
+  // ---- 다음 거래일 종가 역산 ----
+  const sum = (a) => a.reduce((s, x) => s + x, 0);
+  const maTouch = (c, n) => sum(c.slice(-(n - 1))) / (n - 1);
+  const maCross = (c, a, b) => (sum(c.slice(-(b - 1))) / b - sum(c.slice(-(a - 1))) / a) / (1 / a - 1 / b);
+  function rsiTarget(last, avgUp, avgDn, target) {
+    const a = 1 / RSI_N, up = (1 - a) * avgUp, dn = (1 - a) * avgDn;
+    if (!(target > 0 && target < 100) || up + dn <= 0) return null;
+    const rs = target / (100 - target), cur = (100 * avgUp) / (avgUp + avgDn);
+    if (target >= cur) { const d = (rs * dn - up) / a; return d >= 0 ? last + d : null; }
+    const d = (up / rs - dn) / a; return d >= 0 ? last - d : null;
+  }
+  function macdTargets(ef, es, sig) {
+    const af = alpha(MF), as = alpha(MS), k = (1 - af) * ef - (1 - as) * es, slope = af - as;
+    return [-k / slope, (sig - k) / slope];
+  }
+  function bollTouch(c, n = BBN, k = BBK) {
+    const prev = c.slice(-(n - 1)), s = sum(prev), q = sum(prev.map((x) => x * x));
+    const A = (n - 1) ** 2 - k * k * (n - 1), B = -2 * (n - 1) * s + 2 * k * k * s, C = s * s - k * k * (n * q - s * s);
+    const disc = Math.sqrt(Math.max(B * B - 4 * A * C, 0));
+    return [(-B + disc) / (2 * A), (-B - disc) / (2 * A)];
+  }
+  function nextDayLevels(rows, T, maxMove = 0.3) {
+    const c = T.c, i = c.length - 1, last = c[i], L = [];
+    for (const m of MA) {
+      if (c.length < m) continue;
+      const above = last >= T['ma' + m][i];
+      L.push([maTouch(c, m), `${m}일선`, `이 가격 ${above ? '아래' : '위'}로 마감하면 ${m}일선 ${above ? '이탈' : '회복'}`]);
+    }
+    for (const [a, b] of CROSS) {
+      if (c.length < b) continue;
+      const p = maCross(c, a, b);
+      if (T['ma' + a][i] >= T['ma' + b][i]) L.push([p, `${a}·${b}일선 데드크로스`, `이 가격 아래로 마감하면 ${a}일선이 ${b}일선 밑으로`]);
+      else L.push([p, `${a}·${b}일선 골든크로스`, `이 가격 위로 마감하면 ${a}일선이 ${b}일선 위로`]);
+    }
+    if (fin(T.rsiUp[i])) {
+      const p70 = rsiTarget(last, T.rsiUp[i], T.rsiDn[i], 70), p30 = rsiTarget(last, T.rsiUp[i], T.rsiDn[i], 30);
+      if (p70 != null) L.push([p70, 'RSI 70 (과매수 기준)', '이 가격 위로 마감하면 RSI 70 초과']);
+      if (p30 != null) L.push([p30, 'RSI 30 (과매도 기준)', '이 가격 아래로 마감하면 RSI 30 미만']);
+    }
+    const [zp, sp] = macdTargets(T.emaF[i], T.emaS[i], T.sig[i]);
+    const hu = T.hist[i] >= 0, mu = T.macd[i] >= 0;
+    L.push([sp, 'MACD 시그널 교차', `이 가격 ${hu ? '아래' : '위'}로 마감하면 MACD가 시그널 ${hu ? '밑으로' : '위로'}`]);
+    L.push([zp, 'MACD 0선', `이 가격 ${mu ? '아래' : '위'}로 마감하면 MACD가 0선 ${mu ? '밑으로' : '위로'}`]);
+    if (c.length >= BBN) {
+      const [bu, bl] = bollTouch(c);
+      L.push([bu, '볼린저 상단', '이 가격 위로 마감하면 밴드 상단 돌파']);
+      L.push([bl, '볼린저 하단', '이 가격 아래로 마감하면 밴드 하단 이탈']);
+    }
+    const hi = T.high52[i];
+    L.push([hi, '52주 최고가', '이 가격 위로 마감하면 52주 신고가']);
+    L.push([hi * 0.9, '고점 대비 -10%', '이 가격 아래면 조정 국면 (흔히 쓰는 기준)']);
+    L.push([hi * 0.8, '고점 대비 -20%', '이 가격 아래면 약세장 (흔히 쓰는 기준)']);
+    return L.filter(([p]) => fin(p) && p >= last * (1 - maxMove) && p <= last * (1 + maxMove))
+      .map(([price, label, meaning]) => ({ price, label, meaning }))
+      .sort((x, y) => y.price - x.price);
+  }
+
+  // ---- 밸류에이션 ----
+  function fundamentals(refClose, per, pbr, dy, fwdPer, mcapJo) {
+    const pos = (x) => fin(x) && x > 0;
+    return {
+      refClose,
+      eps: pos(per) ? refClose / per : null,
+      bps: pos(pbr) ? refClose / pbr : null,
+      dps: pos(dy) ? (refClose * dy) / 100 : null,
+      fwdEps: pos(fwdPer) ? refClose / fwdPer : null,
+      mcapPerPt: pos(mcapJo) ? mcapJo / refClose : null, // 조원 / pt
+    };
+  }
+  function valuationAt(level, f, bond, gdpJo) {
+    const v = { level };
+    if (f.eps) { v.per = level / f.eps; v.ey = (f.eps / level) * 100; if (fin(bond)) v.gap = v.ey - bond; }
+    if (f.fwdEps) v.fper = level / f.fwdEps;
+    if (f.bps) v.pbr = level / f.bps;
+    if (f.dps) v.dy = (f.dps / level) * 100;
+    if (f.mcapPerPt) { v.mcap = f.mcapPerPt * level; if (fin(gdpJo) && gdpJo > 0) v.buffett = (v.mcap / gdpJo) * 100; }
+    return v;
+  }
+  function levelFor(f, metric, value) {
+    if (!fin(value) || value <= 0) return null;
+    if (metric === 'per' && f.eps) return value * f.eps;
+    if (metric === 'fper' && f.fwdEps) return value * f.fwdEps;
+    if (metric === 'pbr' && f.bps) return value * f.bps;
+    if (metric === 'dy' && f.dps) return (f.dps / value) * 100;
+    return null;
+  }
+  function percentileOf(arr, v) {
+    const h = arr.filter(fin);
+    if (h.length < 20 || !fin(v)) return null;
+    return (h.filter((x) => x < v).length / h.length) * 100;
+  }
+  function quantile(arr, q) {
+    const h = arr.filter(fin).sort((a, b) => a - b);
+    if (!h.length) return NaN;
+    const pos = (h.length - 1) * q, lo = Math.floor(pos), hi = Math.ceil(pos);
+    return h[lo] + (h[hi] - h[lo]) * (pos - lo);
+  }
+  function niceMultiples(center, hist, count = 6) {
+    const h = (hist || []).filter(fin);
+    let lo, hi;
+    if (h.length >= 20) { lo = quantile(h, 0.05); hi = quantile(h, 0.95); } else { lo = center * 0.7; hi = center * 1.3; }
+    lo = Math.min(lo, center); hi = Math.max(hi, center);
+    const raw = (hi - lo) / Math.max(count - 1, 1);
+    const mag = raw > 0 ? 10 ** Math.floor(Math.log10(raw)) : 0.1;
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw);
+    const out = [];
+    for (let i = Math.floor(lo / step + 1e-9); i <= Math.ceil(hi / step - 1e-9); i++) if (i * step > 0) out.push(+(i * step).toFixed(4));
+    return out;
+  }
+
+  return { MA, INDICATORS, technicals, dailyVol, makePath, simulate, describe, pathEvents, nextDayLevels,
+    maTouch, maCross, rsiTarget, macdTargets, bollTouch, fundamentals, valuationAt, levelFor, percentileOf,
+    quantile, niceMultiples };
+})();
+if (typeof module !== 'undefined') module.exports = Sim;
+</script>
+
+<script id="importer">
+/* CSV·붙여넣은 표 → [{d, o, h, l, c, per, pbr, dy, mcap(조원)}] */
+const Importer = (() => {
+  const COLS = [
+    ['d', /^(일자|날짜|거래일|기준일|date|time)$/i],
+    ['c', /^(종가|현재가|체결가|close|price|지수|kospi)$/i],
+    ['o', /^(시가|open)$/i],
+    ['h', /^(고가|high)$/i],
+    ['l', /^(저가|low)$/i],
+    ['per', /^per(\(배\))?$/i],
+    ['pbr', /^pbr(\(배\))?$/i],
+    ['dy', /^(배당수익률|dividendyield|divyield)/i],
+    ['mcap', /^(상장시가총액|시가총액|marketcap)/i],
+  ];
+  function decode(buf) {
+    let t = new TextDecoder('utf-8').decode(buf);
+    if (t.includes('\uFFFD')) { try { t = new TextDecoder('euc-kr').decode(buf); } catch (e) { /* 그대로 */ } }
+    return t.replace(/^﻿/, '');
+  }
+  function splitLine(line, delim) {
+    if (delim === 'ws') return line.trim().split(/\s{2,}|\t|\s(?=[-+\d])/);
+    const out = []; let cur = '', q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+      else if (ch === delim && !q) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map((s) => s.trim());
+  }
+  const norm = (s) => s.replace(/["'\s]/g, '').replace(/\((pt|원|%|백만원|억원)\)$/i, '').toLowerCase();
+  function parseDate(s) {
+    s = String(s).trim();
+    let m;
+    if ((m = s.match(/^(\d{4})\s*[-/.년]\s*(\d{1,2})\s*[-/.월]\s*(\d{1,2})/))) return iso(+m[1], +m[2], +m[3]);
+    if ((m = s.match(/^(\d{4})(\d{2})(\d{2})$/))) return iso(+m[1], +m[2], +m[3]);
+    if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) return iso(+m[3], +m[1], +m[2]);
+    if ((m = s.match(/^(\d{2})\.(\d{2})\.(\d{2})$/))) return iso(2000 + +m[1], +m[2], +m[3]);
+    const t = Date.parse(s);
+    if (!Number.isNaN(t)) { const d = new Date(t); return iso(d.getFullYear(), d.getMonth() + 1, d.getDate()); }
+    return null;
+  }
+  function iso(y, m, d) {
+    if (!(y > 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31)) return null;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+  function num(s) {
+    if (s == null) return NaN;
+    const t = String(s).replace(/[",\s%]/g, '');
+    if (t === '' || t === '-' || t === '—') return NaN;
+    return Number(t);
+  }
+  function parseText(text) {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) throw new Error('표에 두 줄 이상(제목 + 데이터)이 있어야 합니다.');
+    const probe = lines.slice(0, 5).join('\n');
+    const delim = probe.includes('\t') ? '\t' : probe.includes(',') ? ',' : probe.includes(';') ? ';' : 'ws';
+    let headerIdx = -1, map = null;
+    for (let i = 0; i < Math.min(lines.length, 10); i++) {
+      const cells = splitLine(lines[i], delim).map(norm);
+      const m = {};
+      cells.forEach((cell, j) => { for (const [key, re] of COLS) if (m[key] == null && re.test(cell)) { m[key] = j; break; } });
+      if (m.d != null && (m.c != null || m.per != null || m.pbr != null)) { headerIdx = i; map = m; break; }
+    }
+    if (!map) throw new Error('첫 줄에서 "날짜(일자)"와 "종가" 열을 찾지 못했습니다.');
+    const rows = [];
+    for (const line of lines.slice(headerIdx + 1)) {
+      const cells = splitLine(line, delim);
+      const d = parseDate(cells[map.d] ?? '');
+      if (!d) continue;
+      const r = { d };
+      for (const key of ['c', 'o', 'h', 'l', 'per', 'pbr', 'dy', 'mcap']) {
+        if (map[key] == null) continue;
+        const v = num(cells[map[key]]);
+        if (Number.isFinite(v) && v > 0) r[key] = v;
+      }
+      rows.push(r);
+    }
+    if (!rows.length) throw new Error('날짜를 읽을 수 있는 행이 없습니다.');
+    return rows;
+  }
+  // 시가총액 단위 맞추기: KOSPI 시가총액이 100조~1경원(조원 기준 100~10,000) 범위에 들도록
+  function scaleMcap(rows) {
+    const vals = rows.map((r) => r.mcap).filter(Number.isFinite).sort((a, b) => a - b);
+    if (!vals.length) return;
+    const med = vals[Math.floor(vals.length / 2)];
+    const f = [1e-12, 1e-6, 1e-4, 1e-3, 1].find((k) => med * k >= 100 && med * k <= 10000) ?? null;
+    rows.forEach((r) => { if (Number.isFinite(r.mcap)) { if (f == null) delete r.mcap; else r.mcap *= f; } });
+  }
+  function merge(base, extra) {
+    const byDate = new Map((base || []).map((r) => [r.d, { ...r }]));
+    for (const r of extra) byDate.set(r.d, { ...(byDate.get(r.d) || {}), ...r });
+    return [...byDate.values()].sort((a, b) => (a.d < b.d ? -1 : 1));
+  }
+  function finalize(rows) {
+    const out = rows.filter((r) => Number.isFinite(r.c));
+    for (const r of out) { if (!Number.isFinite(r.o)) r.o = r.c; if (!Number.isFinite(r.h)) r.h = Math.max(r.o, r.c); if (!Number.isFinite(r.l)) r.l = Math.min(r.o, r.c); }
+    return out;
+  }
+  return { decode, parseText, parseDate, scaleMcap, merge, finalize };
+})();
+if (typeof module !== 'undefined') module.exports.Importer = Importer;
+</script>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const fin = Number.isFinite;
+  const STORE = 'kospi-sim-v1';
+  const PRESETS = [-20, -10, -5, 5, 10, 20];
+  const METRICS = { pbr: ['PBR', '배'], per: ['PER', '배'], fper: ['선행 PER', '배'], dy: ['배당수익률', '%'] };
+
+  const state = {
+    data: null, // { rows, source, kind: 'embedded' | 'imported' | 'example' }
+    target: null, days: 10, random: false, seed: 1,
+    assume: { per: null, pbr: null, dy: null, fper: null, bond: null, gdp: 2550, mcap: null },
+    years: 5, rev: 'pbr', band: 'pbr', tab: 'valuation',
+  };
+  let ind = null, sim = null, charts = {};
+
+  // ---------- 저장 (이 브라우저에만) ----------
+  function save() {
+    try {
+      const keep = { assume: state.assume, years: state.years, days: state.days, random: state.random };
+      if (state.data && state.data.kind === 'imported') keep.data = state.data;
+      localStorage.setItem(STORE, JSON.stringify(keep));
+    } catch (e) { /* 저장 불가 환경 */ }
+  }
+  function restore() {
+    try {
+      const s = JSON.parse(localStorage.getItem(STORE) || 'null');
+      if (!s) return null;
+      Object.assign(state.assume, s.assume || {});
+      if (s.years) state.years = s.years;
+      if (s.days) state.days = s.days;
+      state.random = !!s.random;
+      return s.data || null;
+    } catch (e) { return null; }
+  }
+
+  // ---------- 형식 ----------
+  const f = (v, d = 2) => (fin(v) ? v.toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d }) : '–');
+  const sf = (v, d = 2) => (fin(v) ? (v > 0 ? '+' : v < 0 ? '−' : '±') + f(Math.abs(v), d) : '–');
+  const cls = (v) => (v > 0 ? 'up' : v < 0 ? 'down' : '');
+  const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  const daysLabel = (n) => (n === 1 ? '다음 거래일' : `${n}거래일` + (n >= 20 ? ` (약 ${Math.round(n / 20.8)}개월)` : n >= 5 ? ` (약 ${Math.round(n / 5)}주)` : ''));
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  // ---------- 데이터 ----------
+  const rows = () => state.data.rows;
+  const lastRow = () => rows()[rows().length - 1];
+  const lastClose = () => lastRow().c;
+
+  function setData(data) {
+    state.data = data;
+    ind = Sim.technicals(data.rows);
+    state.target = Math.round(lastClose() * 1.05 * 100) / 100;
+    state.seed = 1;
+    // 데이터에 PER·PBR 등이 있으면 가정 칸을 그 값으로 채운다 (사용자가 바꿀 수 있음)
+    const lastWith = (k) => { for (let i = data.rows.length - 1; i >= 0; i--) if (fin(data.rows[i][k])) return data.rows[i]; return null; };
+    for (const k of ['per', 'pbr', 'dy', 'mcap']) {
+      const r = lastWith(k);
+      if (r) state.assume[k] = k === 'mcap' ? Math.round((r.mcap * lastClose()) / r.c) : +((k === 'dy' ? (r.dy * r.c) / lastClose() : (r[k] * lastClose()) / r.c)).toFixed(2);
+    }
+    save();
+    renderAll();
+  }
+
+  function exampleData() {
+    // 화면을 둘러보기 위한 가상 데이터 (실제 KOSPI 아님)
+    let seed = 7;
+    const uni = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const nrm = () => Math.sqrt(-2 * Math.log(uni() || 1e-9)) * Math.cos(2 * Math.PI * uni());
+    const out = []; let c = 2500, d = new Date(Date.UTC(2020, 0, 2)), k = 0;
+    const bps0 = 2200, roe0 = 0.085;
+    while (out.length < 1500) {
+      const w = d.getUTCDay();
+      if (w !== 0 && w !== 6) {
+        const prev = c; c = c * Math.exp(0.0003 + 0.011 * nrm());
+        const o = prev * Math.exp(0.003 * nrm());
+        const h = Math.max(o, c) * (1 + Math.abs(0.005 * nrm())), l = Math.min(o, c) * (1 - Math.abs(0.005 * nrm()));
+        const q = Math.floor(k / 63), bps = bps0 * Math.exp(0.055 * q / 4), eps = bps * (roe0 + 0.02 * Math.sin(q / 3));
+        out.push({ d: d.toISOString().slice(0, 10), o, h, l, c, per: c / eps, pbr: c / bps, dy: (eps * 0.3 / c) * 100, mcap: c * 0.79 });
+        k++;
+      }
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+    return { rows: out, source: '예시(가상) 데이터', kind: 'example' };
+  }
+
+  // ---------- 계산 ----------
+  function compute() {
+    const last = lastClose();
+    const vol = state.random ? Sim.dailyVol(rows()) : 0;
+    sim = Sim.simulate(rows(), state.target, state.days, vol, state.seed);
+    const a = state.assume;
+    const fnd = Sim.fundamentals(last, a.per, a.pbr, a.dy, a.fper, a.mcap);
+    const now = Sim.valuationAt(last, fnd, a.bond, a.gdp);
+    const hyp = Sim.valuationAt(state.target, fnd, a.bond, a.gdp);
+    return { last, vol, fnd, now, hyp };
+  }
+
+  // 과거 비교 기간의 이력 (PER·PBR 등은 데이터에 있을 때만)
+  function history(key) {
+    const rs = rows(), lastD = new Date(lastRow().d), from = new Date(lastD); from.setFullYear(from.getFullYear() - state.years);
+    const fromIso = from.toISOString().slice(0, 10);
+    return rs.filter((r) => r.d >= fromIso).map((r) => (key === 'level' ? r.c : r[key]));
+  }
+
+  // ---------- 그리기 ----------
+  function renderAll() {
+    const has = !!state.data;
+    $('controls').hidden = !has; $('tiles').hidden = !has;
+    $('example-banner').hidden = !(has && state.data.kind === 'example');
+    $('empty-card').hidden = has;
+    if (!has) {
+      $('source-line').textContent = '데이터 없음 · 데이터 탭에서 불러오세요';
+      showTab('data', true);
+      renderDataStatus();
+      return;
+    }
+    const r0 = rows()[0], rN = lastRow();
+    $('source-line').innerHTML = `<b>${esc(state.data.source)}</b> · ${r0.d} ~ ${rN.d} (${rows().length.toLocaleString()}거래일)`;
+    renderControls();
+    update();
+    renderDataStatus();
+  }
+
+  function renderControls() {
+    const last = lastClose();
+    $('target').value = state.target.toFixed(2);
+    $('target').min = (last * 0.3).toFixed(2); $('target').max = (last * 3).toFixed(2);
+    const pct = (state.target / last - 1) * 100;
+    $('pct').value = Math.max(-50, Math.min(50, pct)).toFixed(1);
+    $('pct-out').textContent = sf(pct, 1) + '%';
+    $('chg-badge').textContent = sf(pct, 2) + '%';
+    $('chg-badge').className = 'chg-badge ' + cls(pct);
+    $('base-line').textContent = `기준 ${lastRow().d} 종가 ${f(last)}`;
+    $('days').value = state.days;
+    $('days-out').textContent = daysLabel(state.days);
+    $('path-line').setAttribute('aria-pressed', String(!state.random));
+    $('path-random').setAttribute('aria-pressed', String(state.random));
+    $('reroll').disabled = !state.random;
+  }
+
+  let pending = false;
+  function update() {
+    if (!state.data || pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      const ctx = compute();
+      renderTiles(ctx);
+      if (state.tab === 'valuation') renderValuation(ctx);
+      if (state.tab === 'technical') renderTechnical(ctx);
+      if (state.tab === 'levels') renderLevels(ctx);
+    });
+  }
+
+  function tile(label, value, sub, lead) {
+    return `<div class="tile${lead ? ' lead' : ''}"><div class="k">${label}</div><div class="v">${value}</div><div class="s">${sub}</div></div>`;
+  }
+  function renderTiles({ last, now, hyp }) {
+    const T = sim.T, i = T.c.length - 1, j = ind.c.length - 1;
+    const pct = (state.target / last - 1) * 100;
+    const pair = (a, b, d, unit = '') => (fin(a) && fin(b) ? `${sf(b - a, d)} · 현재 ${f(a, d)}${unit}` : '가정을 입력하세요');
+    $('tiles').innerHTML = [
+      tile('가상 KOSPI', f(state.target), `<span class="${cls(pct)}">${sf(pct, 1)}%</span> · ${state.days === 1 ? '다음 거래일' : state.days + '거래일 뒤'}`, true),
+      tile('PER', fin(hyp.per) ? f(hyp.per) + '배' : '–', pair(now.per, hyp.per, 2, '배')),
+      tile('PBR', fin(hyp.pbr) ? f(hyp.pbr) + '배' : '–', pair(now.pbr, hyp.pbr, 2, '배')),
+      tile('배당수익률', fin(hyp.dy) ? f(hyp.dy) + '%' : '–', pair(now.dy, hyp.dy, 2, '%')),
+      tile('RSI (14)', f(T.rsi[i], 1), pair(ind.rsi[j], T.rsi[i], 1)),
+      tile('20일 이격도', f(T.disp20[i], 1) + '%', pair(ind.disp20[j], T.disp20[i], 1, '%')),
+    ].join('');
+  }
+
+  // ----- 밸류에이션 -----
+  const VAL_ROWS = [
+    ['level', 'KOSPI', 2, ''], ['per', 'PER (후행)', 2, '배'], ['fper', 'PER (선행)', 2, '배'], ['pbr', 'PBR', 2, '배'],
+    ['dy', '배당수익률', 2, '%'], ['ey', '이익수익률 (1/PER)', 2, '%'], ['gap', '일드갭 (vs 국고채 10년)', 2, '%p'],
+    ['mcap', '시가총액', 0, '조원'], ['buffett', '시가총액 / 명목 GDP', 0, '%'],
+  ];
+  function renderValuation({ last, fnd, now, hyp }) {
+    const a = state.assume;
+    for (const [k, id] of [['per', 'a-per'], ['pbr', 'a-pbr'], ['dy', 'a-dy'], ['fper', 'a-fper'], ['bond', 'a-bond'], ['gdp', 'a-gdp'], ['mcap', 'a-mcap']]) {
+      const el = $(id); if (document.activeElement !== el) el.value = fin(a[k]) ? a[k] : '';
+    }
+    const hasHist = (k) => rows().some((r) => fin(r[k]));
+    $('h-per').textContent = hasHist('per') ? '데이터의 최근 값' : 'KRX·증권사 앱에서 확인';
+    $('h-pbr').textContent = hasHist('pbr') ? '데이터의 최근 값' : '';
+    $('h-dy').textContent = hasHist('dy') ? '데이터의 최근 값' : '';
+    $('h-mcap').textContent = hasHist('mcap') ? '데이터의 최근 값' : '버핏지수 계산용';
+    $('assume-note').textContent = `${lastRow().d} 종가 ${f(last)} 기준`;
+    $('years').value = String(state.years);
+
+    let html = `<thead><tr><th>항목</th><th>현재</th><th>가상</th><th>변화</th><th>과거 ${state.years}년 중 위치</th></tr></thead><tbody>`;
+    let any = false;
+    for (const [k, label, d, unit] of VAL_ROWS) {
+      if (!fin(hyp[k])) continue;
+      any = true;
+      const histKey = k === 'level' ? 'level' : k;
+      const past = ['level', 'per', 'pbr', 'dy', 'mcap'].includes(histKey) && (histKey === 'level' || hasHist(histKey)) ? history(histKey) : null;
+      const pos = past ? Sim.percentileOf(past, hyp[k]) : null;
+      html += `<tr><td>${label}</td><td class="num">${f(now[k], d)}${unit}</td><td class="num"><b>${f(hyp[k], d)}${unit}</b></td><td class="num">${sf(hyp[k] - now[k], d)}</td><td class="num">${pos == null ? '–' : f(pos, 0) + '%'}</td></tr>`;
+    }
+    $('val-table').innerHTML = html + '</tbody>';
+    const notes = [];
+    notes.push(`'과거 ${state.years}년 중 위치'는 그 기간에 이 값보다 낮았던 날의 비율입니다. PER·PBR은 높을수록 비싼 쪽, 배당수익률은 낮을수록 비싼 쪽입니다.`);
+    if (fnd.eps && fnd.bps) notes.push(`입력한 PER·PBR로 역산한 ROE는 약 ${f((fnd.eps / fnd.bps) * 100, 1)}%입니다 (PBR = PER × ROE).`);
+    if (!hasHist('per')) notes.push('PER·PBR 이력이 없어 KOSPI 지수 외에는 과거 대비 위치를 계산하지 않습니다. KRX [11007] 파일을 올리면 표시됩니다.');
+    if (!any) notes.unshift('위 가정 칸에 현재 PER·PBR 등을 입력하면 계산합니다.');
+    $('val-note').textContent = notes.join(' ');
+
+    // 역산표
+    const opts = Object.keys(METRICS).filter((k) => Sim.levelFor(fnd, k, 1));
+    if (!opts.includes(state.rev)) state.rev = opts[0] || 'pbr';
+    $('rev-seg').innerHTML = opts.map((k) => `<button type="button" data-rev="${k}" aria-pressed="${k === state.rev}">${METRICS[k][0]}</button>`).join('');
+    const m = state.rev, [mName, mUnit] = METRICS[m];
+    let rev = '';
+    if (opts.length) {
+      const series = m === 'fper' ? [] : history(m).filter(fin);
+      let points;
+      if (series.length >= 20) {
+        points = [['과거 최저', Math.min(...series)], ['하위 10%', Sim.quantile(series, 0.1)], ['하위 25%', Sim.quantile(series, 0.25)], ['중앙값', Sim.quantile(series, 0.5)],
+          ['상위 25%', Sim.quantile(series, 0.75)], ['상위 10%', Sim.quantile(series, 0.9)], ['과거 최고', Math.max(...series)]];
+        $('rev-note').textContent = `과거 ${state.years}년 ${mName} 분포의 각 지점이 되려면 KOSPI가 얼마여야 하는지`;
+      } else {
+        points = [-0.2, -0.1, 0, 0.1, 0.2].map((r) => [r === 0 ? '현재' : `현재 ${r > 0 ? '+' : '−'}${Math.abs(r * 100)}%`, now[m] * (1 + r)]);
+        $('rev-note').textContent = `현재 ${mName}에서 배수를 바꿨을 때 KOSPI`;
+      }
+      rev = `<thead><tr><th>기준</th><th>${mName}</th><th>KOSPI</th><th>현재 대비</th></tr></thead><tbody>`;
+      for (const [name, val] of points) {
+        const lv = Sim.levelFor(fnd, m, val);
+        if (!lv) continue;
+        const ch = (lv / last - 1) * 100;
+        rev += `<tr class="clickable" data-level="${lv}"><td>${name}</td><td class="num">${f(val, 2)}${mUnit}</td><td class="num"><b>${f(lv, 0)}</b></td><td class="num ${cls(ch)}">${sf(ch, 1)}%</td></tr>`;
+      }
+      rev += '</tbody>';
+      $('want-label').textContent = `원하는 ${mName} (${mUnit})`;
+      const want = $('want');
+      if (document.activeElement !== want && want.dataset.metric !== m) { want.value = fin(now[m]) ? now[m].toFixed(2) : ''; want.dataset.metric = m; }
+      const wl = Sim.levelFor(fnd, m, parseFloat(want.value));
+      $('want-go').textContent = wl ? `KOSPI ${f(wl, 0)}로 시뮬레이션` : '값을 입력하세요';
+      $('want-go').disabled = !wl;
+      $('want-go').dataset.level = wl || '';
+    } else {
+      $('rev-note').textContent = '가정 칸에 PER·PBR·배당수익률 중 하나 이상을 입력하면 환산표가 나옵니다.';
+      $('want-go').textContent = '값을 입력하세요'; $('want-go').disabled = true;
+    }
+    $('rev-table').innerHTML = rev;
+    renderBand(fnd, now);
+  }
+
+  function chartFor(id) {
+    if (typeof echarts === 'undefined') return null;
+    const el = $(id);
+    if (!charts[id] || charts[id].getDom() !== el) charts[id] = echarts.init(el, null, { renderer: 'canvas' });
+    return charts[id];
+  }
+  function baseText() { return { color: css('--ink-2'), fontFamily: css('--font-ui'), fontSize: 11 }; }
+
+  function renderBand(fnd, now) {
+    const opts = ['pbr', 'per'].filter((k) => (k === 'pbr' ? fnd.bps : fnd.eps));
+    if (!opts.includes(state.band)) state.band = opts[0] || 'pbr';
+    $('band-seg').innerHTML = opts.map((k) => `<button type="button" data-band="${k}" aria-pressed="${k === state.band}">${METRICS[k][0]}</button>`).join('');
+    const chart = chartFor('band-chart');
+    if (!opts.length || !chart) {
+      $('band-note').textContent = !chart ? '차트 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.' : 'PER 또는 PBR을 입력하면 밴드 차트를 그립니다.';
+      if (chart) chart.clear();
+      return;
+    }
+    const k = state.band, hasHist = rows().some((r) => fin(r[k]));
+    const lastD = new Date(lastRow().d), from = new Date(lastD);
+    from.setFullYear(from.getFullYear() - (hasHist ? state.years : 1));
+    const fromIso = from.toISOString().slice(0, 10);
+    const all = sim.rows.filter((r) => r.d >= fromIso);
+    // 1포인트당 BPS/EPS: 데이터에 이력이 있으면 날짜별 역산, 없으면 입력값으로 일정
+    const unitNow = k === 'pbr' ? fnd.bps : fnd.eps;
+    let lastUnit = null;
+    const unit = new Array(all.length).fill(null);
+    const byDate = new Map(rows().map((r) => [r.d, r]));
+    for (let i = 0; i < all.length; i++) {
+      const r = byDate.get(all[i].d);
+      if (r && hasHist && fin(r[k])) lastUnit = r.c / r[k];
+      unit[i] = hasHist ? (all[i].hypo ? unitNow : lastUnit) : unitNow;
+    }
+    const hist = hasHist ? history(k) : null;
+    const mults = Sim.niceMultiples(now[k], hist, 6);
+    const dates = all.map((r) => r.d);
+    const firstHypo = all.findIndex((r) => r.hypo);
+    const muted = css('--muted'), line = css('--line'), ink = css('--ink'), hypo = css('--hypo');
+    const series = mults.map((mv) => ({
+      type: 'line', name: `${METRICS[k][0]} ${mv}배`, data: unit.map((u) => (fin(u) ? +(u * mv).toFixed(2) : null)),
+      showSymbol: false, lineStyle: { width: 1, type: 'dashed', color: muted }, itemStyle: { color: muted }, silent: true,
+      endLabel: { show: true, formatter: `${mv}배`, color: muted, fontSize: 11 }, emphasis: { disabled: true },
+    }));
+    series.push({ type: 'line', name: 'KOSPI', data: all.map((r) => (r.hypo ? null : r.c)), showSymbol: false, lineStyle: { width: 1.8, color: ink }, itemStyle: { color: ink } });
+    series.push({
+      type: 'line', name: '가상 경로', data: all.map((r, i) => (i >= firstHypo - 1 ? r.c : null)), showSymbol: false,
+      lineStyle: { width: 2.6, color: hypo }, itemStyle: { color: hypo },
+      markPoint: { symbol: 'circle', symbolSize: 9, data: [{ coord: [dates.length - 1, all[all.length - 1].c], value: f(all[all.length - 1].c, 0) }], label: { position: 'right', color: hypo, fontWeight: 600, formatter: '{c}' }, itemStyle: { color: hypo } },
+    });
+    chart.setOption({
+      animation: false, textStyle: baseText(),
+      grid: { left: 8, right: 58, top: 28, bottom: 28, containLabel: true },
+      legend: { top: 0, left: 0, data: ['KOSPI', '가상 경로'], textStyle: { color: css('--ink-2') }, itemWidth: 16, itemHeight: 3 },
+      tooltip: { trigger: 'axis', valueFormatter: (v) => (fin(v) ? f(v, 0) : '–') },
+      xAxis: { type: 'category', data: dates, boundaryGap: false, axisLine: { lineStyle: { color: line } }, axisLabel: { color: muted, hideOverlap: true } },
+      yAxis: { type: 'value', scale: true, splitLine: { lineStyle: { color: line, opacity: 0.6 } }, axisLabel: { color: muted, formatter: (v) => f(v, 0) } },
+      series,
+    }, true);
+    $('band-note').textContent = `점선은 1포인트당 ${k === 'pbr' ? '순자산(BPS)' : '이익(EPS)'} × 배수입니다. ` +
+      (hasHist ? '데이터의 PER·PBR로 날짜별로 역산했고, 실적 공시 시점에 계단처럼 바뀝니다. ' : '입력한 현재 값으로 계산한 수평선입니다 (최근 1년만 표시). ') +
+      '가상 구간은 마지막 값을 그대로 이어 씁니다.';
+  }
+
+  // ----- 기술적 지표 -----
+  function renderTechnical() {
+    const T = sim.T, rs = sim.rows, n = rs.length, i = n - 1, j = ind.c.length - 1;
+    const firstHypo = rs.findIndex((r) => r.hypo);
+    $('cmp-title').textContent = `지표 비교: 현재(${rs[j].d.slice(5)}) → 가상(${rs[i].d.slice(5)})`;
+    let html = '<thead><tr><th>지표</th><th>현재</th><th>가상</th><th>변화</th><th class="text">가상 상태</th></tr></thead><tbody>';
+    for (const [k, label, d, unit] of Sim.INDICATORS) {
+      const a = ind[k][j], b = T[k][i], s = Sim.describe(k, T, i);
+      const hot = /과매수|과열|돌파|신고가/.test(s), cold = /과매도|침체|이탈|약세장|조정/.test(s);
+      html += `<tr><td>${label}</td><td class="num">${f(a, d)}${unit}</td><td class="num"><b>${f(b, d)}${unit}</b></td><td class="num">${sf(b - a, d)}</td><td class="text">${s ? `<span class="pill${hot ? ' hot' : cold ? ' cold' : ''}">${s}</span>` : ''}</td></tr>`;
+    }
+    $('cmp-table').innerHTML = html + '</tbody>';
+    const ev = Sim.pathEvents(sim);
+    $('events').innerHTML = ev.length ? ev.map(([d, t, dir]) => `<li><span class="date">${d.slice(5)}</span><span class="${dir}">${esc(t)}</span></li>`).join('') : '<li class="muted">새로 생기는 교차·돌파 신호가 없습니다.</li>';
+    $('path-note').textContent = '가상 구간의 시가는 전날 종가, 고가·저가는 시가와 종가 중 큰 값·작은 값입니다. ' +
+      (state.random ? `변동성 반영 경로는 최근 60거래일 일간 변동성(${f(Sim.dailyVol(rows()) * 100, 2)}%)으로 오르내리다 목표가에서 끝납니다.`
+        : '"일정한 비율로" 경로는 매일 같은 방향으로 움직여 RSI·스토캐스틱·투자심리선이 극단값으로 가기 쉽습니다. "변동성 반영"을 고르면 더 현실적인 경로로 볼 수 있습니다.');
+
+    const chart = chartFor('tech-chart');
+    if (!chart) return;
+    const H = $('tech-chart').clientHeight || 760;
+    const dates = rs.map((r) => r.d);
+    const real = (arr) => arr.map((v, k) => (k < firstHypo && fin(v) ? +v.toFixed(3) : null));
+    const hyp = (arr) => arr.map((v, k) => (k >= firstHypo - 1 && fin(v) ? +v.toFixed(3) : null));
+    const ink = css('--ink'), muted = css('--muted'), line = css('--line'), hypoC = css('--hypo'), up = css('--up'), down = css('--down'), acc = css('--accent');
+    const maC = { 5: css('--ma5'), 20: css('--ma20'), 60: css('--ma60'), 120: css('--ma120') };
+    const top = [58, 0, 0, 0], hgt = [0, 0, 0, 0];
+    const avail = H - 58 - 70, gap = 40;
+    hgt[0] = Math.round((avail - 3 * gap) * 0.46); hgt[1] = Math.round((avail - 3 * gap) * 0.17); hgt[2] = Math.round((avail - 3 * gap) * 0.2); hgt[3] = Math.round((avail - 3 * gap) * 0.17);
+    for (let g = 1; g < 4; g++) top[g] = top[g - 1] + hgt[g - 1] + gap;
+    const grids = top.map((t, g) => ({ left: 8, right: 54, top: t, height: hgt[g], containLabel: true }));
+    const xAxes = grids.map((_, g) => ({ type: 'category', gridIndex: g, data: dates, boundaryGap: true, axisLine: { lineStyle: { color: line } },
+      axisTick: { show: false }, axisLabel: { show: g === 3, color: muted, hideOverlap: true }, axisPointer: { label: { show: g === 3 } } }));
+    const titles = ['KOSPI · 이동평균 · 볼린저(20,2)', 'RSI (14)', 'MACD (12,26,9)', '스토캐스틱 슬로우 (14,3,3)'];
+    const yAxes = grids.map((_, g) => ({ type: 'value', gridIndex: g, scale: g === 0 || g === 2, min: g === 1 || g === 3 ? 0 : undefined, max: g === 1 || g === 3 ? 100 : undefined,
+      splitNumber: g === 0 ? 5 : 2, splitLine: { lineStyle: { color: line, opacity: 0.6 } }, axisLabel: { color: muted, formatter: (v) => (g === 0 ? f(v, 0) : f(v, 0)) } }));
+    const S = [];
+    const lineS = (name, data, color, g, opt = {}) => S.push({ type: 'line', name, data, xAxisIndex: g, yAxisIndex: g, showSymbol: false, connectNulls: false,
+      lineStyle: { width: opt.w || 1.3, color, type: opt.dash ? 'dotted' : 'solid' }, itemStyle: { color }, emphasis: { disabled: true }, z: opt.z || 2, ...(opt.extra || {}) });
+    // 볼린저: 하단 + (상단-하단) 누적 영역
+    S.push({ type: 'line', name: '볼린저 하단', data: T.bbLow.map((v) => (fin(v) ? +v.toFixed(2) : null)), stack: 'bb', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { width: 0.8, color: acc, opacity: 0.5 }, itemStyle: { color: acc }, emphasis: { disabled: true }, z: 1 });
+    S.push({ type: 'line', name: '볼린저밴드', data: T.bbUp.map((v, k) => (fin(v) ? +(v - T.bbLow[k]).toFixed(2) : null)), stack: 'bb', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false,
+      lineStyle: { width: 0.8, color: acc, opacity: 0.5 }, itemStyle: { color: acc }, areaStyle: { color: acc, opacity: 0.08 }, emphasis: { disabled: true }, z: 1,
+      tooltip: { valueFormatter: () => '' } });
+    for (const m of Sim.MA) { lineS(`${m}일선`, real(T['ma' + m]), maC[m], 0); lineS(`${m}일선`, hyp(T['ma' + m]), maC[m], 0, { dash: true }); }
+    lineS('KOSPI', real(T.c), ink, 0, { w: 2, z: 3 });
+    lineS('가상 경로', hyp(T.c), hypoC, 0, { w: 2.6, z: 4, extra: { markPoint: { symbol: 'circle', symbolSize: 9, data: [{ coord: [n - 1, T.c[i]], value: f(T.c[i], 0) }], label: { position: 'right', color: hypoC, fontWeight: 600, formatter: '{c}' }, itemStyle: { color: hypoC } } } });
+    lineS('RSI', real(T.rsi), ink, 1); lineS('RSI', hyp(T.rsi), hypoC, 1, { dash: true });
+    S.push({ type: 'bar', name: 'MACD 오실레이터', xAxisIndex: 2, yAxisIndex: 2, barWidth: '60%',
+      data: T.hist.map((v, k) => ({ value: +v.toFixed(3), itemStyle: { color: v >= 0 ? up : down, opacity: k >= firstHypo ? 0.45 : 0.8 } })), emphasis: { disabled: true } });
+    lineS('MACD', real(T.macd), ink, 2); lineS('MACD', hyp(T.macd), ink, 2, { dash: true });
+    lineS('시그널', real(T.sig), maC[120], 2); lineS('시그널', hyp(T.sig), maC[120], 2, { dash: true });
+    lineS('%K', real(T.stK), ink, 3); lineS('%K', hyp(T.stK), ink, 3, { dash: true });
+    lineS('%D', real(T.stD), maC[120], 3); lineS('%D', hyp(T.stD), maC[120], 3, { dash: true });
+    // 기준선·가상 구간 음영
+    const guide = (g, ys) => S.push({ type: 'line', xAxisIndex: g, yAxisIndex: g, data: [], silent: true,
+      markLine: { symbol: 'none', silent: true, label: { show: false }, lineStyle: { color: muted, type: 'dashed', width: 1 }, data: ys.map((y) => ({ yAxis: y })) } });
+    guide(1, [70, 30]); guide(3, [80, 20]);
+    for (let g = 0; g < 4; g++) S.push({ type: 'line', xAxisIndex: g, yAxisIndex: g, data: [], silent: true,
+      markArea: { silent: true, itemStyle: { color: hypoC, opacity: 0.08 }, data: [[{ xAxis: dates[firstHypo] }, { xAxis: dates[n - 1] }]] } });
+    const startIdx = Math.max(0, n - (state.days + 250));
+    chart.setOption({
+      animation: false, textStyle: baseText(),
+      title: titles.map((t, g) => ({ text: t, left: 8, top: top[g] - 28, textStyle: { fontSize: 12, fontWeight: 500, color: css('--ink-2'), fontFamily: css('--font-ui') } })),
+      legend: { top: 0, right: 0, data: ['KOSPI', '가상 경로', '5일선', '20일선', '60일선', '120일선'], textStyle: { color: css('--ink-2') }, itemWidth: 14, itemHeight: 3, type: 'scroll' },
+      axisPointer: { link: [{ xAxisIndex: 'all' }], lineStyle: { color: muted } },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'line' }, confine: true, order: 'seriesAsc',
+        formatter: (ps) => {
+          const k = ps[0].dataIndex, r = rs[k];
+          const row = (name, v, d = 2) => `<div style="display:flex;justify-content:space-between;gap:12px"><span>${name}</span><b>${f(v, d)}</b></div>`;
+          return `<div style="font-size:12px;min-width:160px"><div style="margin-bottom:4px">${r.d}${r.hypo ? ' <span style="color:' + hypoC + '">가상</span>' : ''}</div>` +
+            row('종가', T.c[k]) + row('20일선', T.ma20[k]) + row('RSI', T.rsi[k], 1) + row('MACD', T.macd[k]) + row('시그널', T.sig[k]) + row('%K', T.stK[k], 1) + '</div>';
+        } },
+      grid: grids, xAxis: xAxes, yAxis: yAxes,
+      dataZoom: [{ type: 'inside', xAxisIndex: [0, 1, 2, 3], startValue: startIdx, endValue: n - 1 },
+        { type: 'slider', xAxisIndex: [0, 1, 2, 3], startValue: startIdx, endValue: n - 1, bottom: 8, height: 18, borderColor: line, textStyle: { color: muted }, labelFormatter: (v) => dates[v] || '' }],
+      series: S,
+    }, true);
+  }
+
+  // ----- 주요 가격대 -----
+  function renderLevels() {
+    const last = lastClose(), lv = Sim.nextDayLevels(rows(), ind);
+    $('levels-note').textContent = `${lastRow().d} 종가 ${f(last)}에서 다음 거래일 하루 만에 그 가격으로 마감한다고 보고 역산한 값입니다. 현재가 ±30% 범위만 표시합니다. 행을 누르면 그 가격·다음 거래일로 시뮬레이션합니다.`;
+    const items = lv.map((x) => ({ ...x, kind: '' }));
+    items.push({ price: last, label: '현재 종가', meaning: `${lastRow().d} 마감`, kind: 'current' });
+    items.push({ price: state.target, label: '가상 KOSPI', meaning: '지금 정한 값', kind: 'target' });
+    items.sort((a, b) => b.price - a.price || (a.kind === 'target' ? -1 : 1));
+    let html = '<thead><tr><th>가격</th><th>현재 대비</th><th class="text">기준</th><th class="text">의미</th></tr></thead><tbody>';
+    for (const it of items) {
+      const ch = (it.price / last - 1) * 100;
+      const rc = it.kind === 'current' ? 'is-current' : it.kind === 'target' ? 'is-target' : 'clickable';
+      html += `<tr class="${rc}" ${it.kind ? '' : `data-level="${it.price}" data-nextday="1" tabindex="0"`}><td class="num"><b>${f(it.price)}</b></td><td class="num ${cls(ch)}">${sf(ch, 2)}%</td><td class="text">${esc(it.label)}</td><td class="text">${esc(it.meaning)}</td></tr>`;
+    }
+    $('levels-table').innerHTML = html + '</tbody>';
+  }
+
+  // ----- 데이터 -----
+  function renderDataStatus() {
+    const el = $('data-status');
+    if (!state.data) { el.textContent = '불러온 데이터가 없습니다.'; el.className = 'msg'; $('clear-data').hidden = true; return; }
+    const rs = rows(), has = (k) => rs.some((r) => fin(r[k]));
+    const cols = ['종가', has('h') ? '고가·저가' : null, has('per') ? 'PER' : null, has('pbr') ? 'PBR' : null, has('dy') ? '배당수익률' : null, has('mcap') ? '시가총액' : null].filter(Boolean);
+    el.innerHTML = `<b>${esc(state.data.source)}</b> · ${rs[0].d} ~ ${lastRow().d} · ${rs.length.toLocaleString()}거래일 · 열: ${cols.join(', ')}` +
+      (rs.length < 130 ? '<br><span class="up">120일선·52주 고점 등을 제대로 보려면 1년 이상 데이터가 필요합니다.</span>' : '');
+    el.className = 'msg';
+    $('clear-data').hidden = state.data.kind !== 'imported' && state.data.kind !== 'example';
+  }
+
+  function importRows(parsed, sourceName) {
+    let merged = state.data && state.data.kind === 'imported' ? Importer.merge(state.data.rows, parsed) : Importer.merge([], parsed);
+    Importer.scaleMcap(merged);
+    merged = Importer.finalize(merged);
+    if (merged.length < 2) throw new Error('종가가 있는 행이 2개 미만입니다. 가격 파일(종가 열)을 함께 올려 주세요.');
+    setData({ rows: merged, source: sourceName, kind: 'imported' });
+    $('import-msg').textContent = `${merged.length.toLocaleString()}거래일을 불러왔습니다.`;
+    $('import-msg').className = 'msg ok';
+  }
+  async function importFiles(files) {
+    try {
+      let parsed = [];
+      for (const file of files) parsed = parsed.concat(Importer.parseText(Importer.decode(await file.arrayBuffer())));
+      importRows(parsed, files.length === 1 ? files[0].name : `${files.length}개 파일`);
+    } catch (e) { $('import-msg').textContent = e.message; $('import-msg').className = 'msg err'; }
+  }
+
+  // ---------- 탭 ----------
+  const TABS = ['valuation', 'technical', 'levels', 'data', 'help'];
+  function showTab(tab, silent) {
+    if (!TABS.includes(tab)) tab = state.data ? 'valuation' : 'data';
+    if (!state.data && ['valuation', 'technical', 'levels'].includes(tab)) tab = 'data';
+    state.tab = tab;
+    for (const t of TABS) $('pane-' + t).hidden = t !== tab;
+    document.querySelectorAll('#tabs a').forEach((a) => {
+      if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    if (!silent) update();
+    Object.values(charts).forEach((c) => c.resize());
+  }
+
+  // ---------- 이벤트 ----------
+  function setTarget(v) {
+    const last = lastClose();
+    if (!fin(v)) return;
+    state.target = Math.round(Math.min(Math.max(v, last * 0.3), last * 3) * 100) / 100;
+    renderControls(); update();
+  }
+  $('target').addEventListener('change', (e) => setTarget(parseFloat(e.target.value)));
+  $('target').addEventListener('keydown', (e) => { if (e.key === 'Enter') setTarget(parseFloat(e.target.value)); });
+  $('pct').addEventListener('input', (e) => setTarget(lastClose() * (1 + parseFloat(e.target.value) / 100)));
+  $('presets').innerHTML = PRESETS.map((p) => `<button type="button" class="btn preset" data-pct="${p}">${p > 0 ? '+' : '−'}${Math.abs(p)}%</button>`).join('');
+  $('presets').addEventListener('click', (e) => { const b = e.target.closest('[data-pct]'); if (b) setTarget(lastClose() * (1 + b.dataset.pct / 100)); });
+  $('days').addEventListener('input', (e) => { state.days = +e.target.value; renderControls(); update(); save(); });
+  $('path-line').addEventListener('click', () => { state.random = false; renderControls(); update(); save(); });
+  $('path-random').addEventListener('click', () => { state.random = true; renderControls(); update(); save(); });
+  $('reroll').addEventListener('click', () => { state.seed += 1; update(); });
+
+  const assumeIds = { 'a-per': 'per', 'a-pbr': 'pbr', 'a-dy': 'dy', 'a-fper': 'fper', 'a-bond': 'bond', 'a-gdp': 'gdp', 'a-mcap': 'mcap' };
+  for (const [id, k] of Object.entries(assumeIds)) $(id).addEventListener('input', (e) => { const v = parseFloat(e.target.value); state.assume[k] = fin(v) ? v : null; save(); update(); });
+  $('years').addEventListener('change', (e) => { state.years = +e.target.value; save(); update(); });
+  $('rev-seg').addEventListener('click', (e) => { const b = e.target.closest('[data-rev]'); if (b) { state.rev = b.dataset.rev; update(); } });
+  $('band-seg').addEventListener('click', (e) => { const b = e.target.closest('[data-band]'); if (b) { state.band = b.dataset.band; update(); } });
+  $('want').addEventListener('input', () => update());
+  $('want-go').addEventListener('click', (e) => { const v = parseFloat(e.currentTarget.dataset.level); if (fin(v)) setTarget(v); });
+  const levelClick = (e) => {
+    const tr = e.target.closest('tr[data-level]');
+    if (!tr) return;
+    if (tr.dataset.nextday) { state.days = 1; }
+    setTarget(parseFloat(tr.dataset.level));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  $('rev-table').addEventListener('click', levelClick);
+  $('levels-table').addEventListener('click', levelClick);
+  $('levels-table').addEventListener('keydown', (e) => { if (e.key === 'Enter') levelClick(e); });
+
+  $('file').addEventListener('change', (e) => { if (e.target.files.length) importFiles([...e.target.files]); e.target.value = ''; });
+  const drop = $('drop');
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files.length) importFiles([...e.dataTransfer.files]); });
+  $('paste-go').addEventListener('click', () => {
+    try { importRows(Importer.parseText($('paste').value), '붙여넣은 표'); }
+    catch (e) { $('import-msg').textContent = e.message; $('import-msg').className = 'msg err'; }
+  });
+  $('example-go').addEventListener('click', () => { setData(exampleData()); location.hash = 'valuation'; });
+  $('clear-data').addEventListener('click', () => {
+    state.data = null;
+    try { localStorage.removeItem(STORE); } catch (e) { /* 무시 */ }
+    boot();
+  });
+
+  window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
+  window.addEventListener('resize', () => Object.values(charts).forEach((c) => c.resize()));
+  const rethemed = () => update();
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', rethemed); } catch (e) { /* 구형 브라우저 */ }
+  new MutationObserver(rethemed).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  // ---------- 시작 ----------
+  function boot() {
+    const saved = restore();
+    let embedded = null;
+    try { embedded = JSON.parse($('embedded-data').textContent); } catch (e) { embedded = null; }
+    if (embedded && embedded.rows && embedded.rows.length) {
+      const rowsE = embedded.rows.map((r) => ({ d: r[0], o: r[1], h: r[2], l: r[3], c: r[4], per: r[5] ?? undefined, pbr: r[6] ?? undefined, dy: r[7] ?? undefined, mcap: r[8] ?? undefined }));
+      const newer = saved && saved.rows && saved.rows.length && saved.rows[saved.rows.length - 1].d > rowsE[rowsE.length - 1].d;
+      if (newer) state.data = saved; else state.data = { rows: rowsE, source: embedded.source, kind: 'embedded' };
+    } else if (saved && saved.rows && saved.rows.length) {
+      state.data = saved;
+    } else {
+      state.data = null;
+    }
+    if (state.data) setData(state.data);
+    else renderAll();
+    showTab(location.hash.slice(1) || (state.data ? 'valuation' : 'data'));
+  }
+  boot();
+})();
+</script>

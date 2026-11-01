@@ -73,6 +73,18 @@ streamlit run kospi_retail_dashboard/simulator.py
 - 국고채 10년 금리, 명목 GDP, 선행 PER은 사이드바에서 입력합니다.
 - 가상 거래일은 주말만 제외합니다 (공휴일 미반영). 인터넷 없이 보려면 **데모 (가상 데이터)** 를 선택하세요.
 
+### 웹페이지 버전 (`web/`)
+
+설치 없이 브라우저에서 쓰는 같은 시뮬레이터입니다 (`web/simulator_page.html`).
+실제 데이터를 넣은 HTML 파일 하나를 만들려면 KRX·네이버에 접속되는 컴퓨터에서:
+
+```bash
+python kospi_retail_dashboard/web/build_web.py --years 5 --out kospi_simulator.html
+```
+
+`KRX_ID`·`KRX_PW` 환경변수가 있으면 PER·PBR·배당수익률·시가총액 이력도 들어갑니다.
+데이터가 없는 페이지는 KRX [11003] 개별지수 시세 추이·[11007] PER/PBR/배당수익률 CSV나 붙여넣은 표를 직접 불러올 수 있습니다.
+
 ## 테스트
 
 ```bash
@@ -88,5 +100,6 @@ cd kospi_retail_dashboard && python -m pytest -q tests
 - `simulator.py` — KOSPI 가격 시뮬레이터 화면
 - `simulation.py` — 가상 경로, 기술적 지표, 다음 거래일 가격 역산, 밸류에이션 계산
 - `sim_charts.py` — 시뮬레이터 차트
+- `web/simulator_page.html` — 웹페이지 버전, `web/build_web.py` — 실제 데이터를 넣은 HTML 만들기
 
 본 앱의 지표는 참고용이며 투자 판단의 근거가 아닙니다.

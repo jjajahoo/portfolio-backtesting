@@ -213,3 +213,21 @@ def test_simulator_demo_mode_runs():
     for period in ("3년", "10년"):
         at.sidebar.selectbox[0].set_value(period).run()
         assert not at.exception, at.exception
+
+
+def test_build_web_embeds_data():
+    import json
+    import re
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "web"))
+    from build_web import build_html
+
+    df = sim.make_demo_market("2024-01-01", "2024-12-31")
+    html = build_html(df, "테스트")
+    assert html.startswith("<!doctype html>")
+    payload = json.loads(re.search(r'id="embedded-data">(.*?)</script>', html, re.S).group(1))
+    assert payload["source"] == "테스트" and len(payload["rows"]) == len(df)
+    first = payload["rows"][0]
+    assert first[0] == f"{df.index[0]:%Y-%m-%d}" and first[4] == pytest.approx(df["close"].iloc[0], abs=0.01)
+    assert first[8] == pytest.approx(df["mcap"].iloc[0] / 1e12, abs=0.1)  # 조원
