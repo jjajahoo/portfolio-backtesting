@@ -137,7 +137,19 @@ def fetch_kospi_krx(start, end) -> pd.DataFrame:
     )
     if "거래대금" in df:
         out["kospi_value"] = df["거래대금"]
+    if "상장시가총액" in df:
+        out["kospi_mcap"] = _scale_to_won(df["상장시가총액"].astype(float), lo=1e14, hi=1e16)
     return out.astype(float)
+
+
+def fetch_kospi_fundamental_krx(start, end) -> pd.DataFrame:
+    """KOSPI 지수 PER·PBR·배당수익률(%) 일별 이력. KRX 는 자료가 없으면 0 을 주므로 결측으로 바꾼다."""
+    stock = _pykrx_stock()
+    df = _krx_concat(stock.get_index_fundamental, start, end, ticker="1001")
+    out = pd.DataFrame(
+        {"per": df["PER"], "pbr": df["PBR"], "div_yield": df["배당수익률"]}
+    ).astype(float)
+    return out.where(out > 0)
 
 
 def fetch_investor_krx(start, end) -> pd.DataFrame:
@@ -362,6 +374,30 @@ def load_market_data(start, end, use_krx: bool) -> tuple[pd.DataFrame, LoadRepor
     investor = _first_success(report, "개인 수급", investor_attempts)
     funds = _first_success(report, "예탁금·신용융자", funds_attempts)
     return align([kospi, investor, funds]), report
+
+
+def load_kospi_valuation(start, end, use_krx: bool) -> tuple[pd.DataFrame, LoadReport]:
+    """시뮬레이터용: KOSPI 가격(+시가총액)과 PER·PBR·배당수익률을 한 표로.
+
+    반환 컬럼: open, high, low, close, (mcap, per, pbr, div_yield)
+    """
+    report = LoadReport()
+    attempts = [("KRX", lambda: fetch_kospi_krx(start, end))] if use_krx else []
+    attempts.append(("네이버", lambda: fetch_kospi_naver(start, end)))
+    kospi = _first_success(report, "KOSPI 지수", attempts)
+    fund = None
+    if use_krx:
+        fund = _first_success(report, "PER·PBR·배당수익률",
+                              [("KRX", lambda: fetch_kospi_fundamental_krx(start, end))])
+    else:
+        report.fail("PER·PBR·배당수익률", "KRX 로그인이 없어 사이드바에 직접 입력한 값을 씁니다")
+    df = align([kospi, fund])
+    df = df.rename(columns={
+        "kospi_open": "open", "kospi_high": "high", "kospi_low": "low",
+        "kospi_close": "close", "kospi_mcap": "mcap",
+    })
+    keep = [c for c in ("open", "high", "low", "close", "mcap", "per", "pbr", "div_yield") if c in df]
+    return df[keep], report
 
 
 def read_uploaded_csv(buf) -> pd.DataFrame:
