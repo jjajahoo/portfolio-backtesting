@@ -97,6 +97,45 @@ def render_report(snap: pd.DataFrame, summ: dict, levels: pd.DataFrame, lookback
     return "\n".join(lines)
 
 
+def render_markdown(snap: pd.DataFrame, summ: dict, levels: pd.DataFrame, lookback_years: float,
+                    report_items=None, demo: bool = False) -> str:
+    """GitHub Actions 요약·휴대폰에서 보기 좋은 마크다운 리포트."""
+    if "overall" not in summ:
+        return "시장 위치를 계산할 데이터가 부족합니다."
+    ov = summ["overall"]
+    out = [f"## KOSPI 시장 위치 — {ov['date']:%Y-%m-%d}", ""]
+    if demo:
+        out += ["> ⚠️ 데모 모드: 가상 데이터입니다.", ""]
+    if not levels.empty:
+        out.append(f"**KOSPI {levels.iloc[0]['지수']:,.2f}** · 비교 기간 최근 {lookback_years:g}년")
+        out.append("")
+    out += ["| 구분 | 점수 | 판단 | 1개월 변화 |", "|---|---:|---|---:|"]
+    for key in ["overall", *CATEGORIES]:
+        name = "**종합**" if key == "overall" else key
+        if key not in summ:
+            out.append(f"| {name} | - | 데이터 없음 | - |")
+            continue
+        c = summ[key]
+        chg = "-" if c["change_1m"] is None else f"{c['change_1m']:+.0f}"
+        out.append(f"| {name} | {c['score']:.0f} | {c['label']} | {chg} |")
+    out += ["", "0 = 침체·저평가 · 50 = 과거 평균 · 100 = 과열·고평가", "",
+            "### 지표별", "", "| 지표 | 현재값 | 온도 | 해석 |", "|---|---:|---:|---|"]
+    for _, r in snap.iterrows():
+        value = f"{r['현재값']:,.{int(r['digits'])}f}{r['단위']}"
+        out.append(f"| {r['지표']} | {value} | {r['온도']:.0f} | {r['해석']} |")
+    if not levels.empty:
+        out += ["", "### 가격 레벨", "", "| 구분 | 지수 | 현재가 대비 |", "|---|---:|---:|"]
+        for _, r in levels.iterrows():
+            out.append(f"| {r['구분']} | {r['지수']:,.2f} | {r['현재가 대비(%)']:+.1f}% |")
+        if "alignment" in levels.attrs:
+            out += ["", f"이동평균 배열: **{levels.attrs['alignment']}**"]
+    if report_items:
+        out += ["", "### 데이터 소스", ""]
+        out += [f"- {'✅' if ok else '❌'} {name}: {msg}" for name, ok, msg in report_items]
+    out += ["", "_참고용 지표이며 투자 판단의 근거가 아닙니다._"]
+    return "\n".join(out)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="KOSPI 현재 위치(밸류에이션·추세·수급·심리) 리포트")
     ap.add_argument("--demo", action="store_true", help="가상 데이터 사용 (네트워크 불필요)")
@@ -108,6 +147,7 @@ def main(argv=None) -> int:
     ap.add_argument("--ecos-key", default=os.getenv("ECOS_KEY"))
     ap.add_argument("--csv", help="지표 표를 CSV 로 저장할 경로")
     ap.add_argument("--history-csv", help="날짜별 점수(종합·카테고리·지표 온도)를 CSV 로 저장할 경로")
+    ap.add_argument("--markdown", help="마크다운 리포트를 저장할 경로 (GitHub Actions 요약용)")
     args = ap.parse_args(argv)
 
     end = pd.Timestamp(args.end) if args.end else pd.Timestamp.today().normalize()
@@ -125,6 +165,11 @@ def main(argv=None) -> int:
             print("불러온 데이터가 없습니다.")
             for name, ok, msg in report_items:
                 print(f"  {'OK ' if ok else '실패'} {name}: {msg}")
+            if args.markdown:
+                Path(args.markdown).write_text(
+                    "## 데이터를 불러오지 못했습니다\n\n"
+                    + "\n".join(f"- {'✅' if ok else '❌'} {n}: {m}" for n, ok, m in report_items),
+                    encoding="utf-8")
             return 1
 
     full = add_indicators(raw, flow_window=args.flow_window)
@@ -134,6 +179,10 @@ def main(argv=None) -> int:
         return 1
     print(render_report(snap, summ, levels, args.years, report_items))
 
+    if args.markdown:
+        Path(args.markdown).write_text(
+            render_markdown(snap, summ, levels, args.years, report_items, demo=args.demo), encoding="utf-8")
+        print(f"\n저장: {args.markdown}")
     if args.csv:
         snap.drop(columns=["key", "digits"]).to_csv(args.csv, index=False, encoding="utf-8-sig")
         print(f"\n저장: {args.csv}")

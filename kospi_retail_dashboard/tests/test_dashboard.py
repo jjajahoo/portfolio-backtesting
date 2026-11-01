@@ -252,10 +252,14 @@ def test_cli_demo(tmp_path, capsys):
 
     out = tmp_path / "pos.csv"
     hist = tmp_path / "hist.csv"
-    code = kospi_position.main(["--demo", "--end", "2024-12-31", "--csv", str(out), "--history-csv", str(hist)])
+    md = tmp_path / "report.md"
+    code = kospi_position.main(["--demo", "--end", "2024-12-31", "--csv", str(out), "--history-csv", str(hist),
+                                "--markdown", str(md)])
     assert code == 0
     text = capsys.readouterr().out
     assert "종합 점수" in text and "밸류에이션" in text and "주요 가격 레벨" in text
     table = pd.read_csv(out)
     assert {"지표", "현재값", "백분위", "온도", "해석"} <= set(table.columns)
     assert "overall" in pd.read_csv(hist).columns
+    report = md.read_text(encoding="utf-8")
+    assert "| **종합** |" in report and "### 지표별" in report

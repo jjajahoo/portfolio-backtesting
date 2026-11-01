@@ -1,0 +1,73 @@
+# KOSPI 시장 위치 리포트를 GitHub 서버에서 실행한다.
+# 결과: Actions 실행 화면의 Summary(휴대폰에서도 보임) + 첨부 파일(CSV·마크다운)
+#
+# (선택) 저장소 Settings > Secrets and variables > Actions 에 넣으면 지표가 늘어난다.
+#   KRX_ID, KRX_PW : PER·PBR·배당수익률·시가총액
+#   ECOS_KEY       : 국고채 10년물·환율 (한국은행 ECOS)
+name: KOSPI 시장 위치 리포트
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "비교 기간(년)"
+        default: "5"
+  schedule:
+    - cron: "17 7 * * 1-5" # 평일 16:17 KST (장 마감 후), 기본 브랜치에서만 동작
+  push:
+    paths:
+      - "kospi_retail_dashboard/**"
+      - ".github/workflows/kospi-position.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      YEARS: ${{ github.event.inputs.years || '5' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: kospi_retail_dashboard/requirements.txt
+
+      - name: 패키지 설치
+        run: pip install -r kospi_retail_dashboard/requirements.txt pytest
+
+      - name: 테스트
+        working-directory: kospi_retail_dashboard
+        run: python -m pytest -q tests
+
+      - name: 리포트 생성
+        working-directory: kospi_retail_dashboard
+        env:
+          KRX_ID: ${{ secrets.KRX_ID }}
+          KRX_PW: ${{ secrets.KRX_PW }}
+          ECOS_KEY: ${{ secrets.ECOS_KEY }}
+        run: |
+          set -o pipefail
+          python kospi_position.py --years "$YEARS" \
+            --markdown report.md --csv position.csv --history-csv history.csv | tee report.txt
+
+      - name: 요약에 리포트 표시
+        if: always()
+        working-directory: kospi_retail_dashboard
+        run: |
+          if [ -f report.md ]; then cat report.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kospi-position-report
+          path: |
+            kospi_retail_dashboard/report.md
+            kospi_retail_dashboard/report.txt
+            kospi_retail_dashboard/position.csv
+            kospi_retail_dashboard/history.csv
+          if-no-files-found: ignore
