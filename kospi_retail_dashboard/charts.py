@@ -28,7 +28,15 @@ COLORS = {
     "credit_kospi": "#e87ba4",
     "credit_to_deposit": "#eda100",
     "sentiment": "#e87ba4",
+    "foreign_net_roll": "#2a78d6",
+    "foreign_net_cum": "#2a78d6",
+    "inst_net_roll": "#1baf7a",
+    "inst_net_cum": "#1baf7a",
 }
+NEUTRAL = "#f0efec"
+GRID = "#c3c2b7"
+MUTED = "#898781"
+CATEGORY_COLORS = {"밸류에이션": "#6250d6", "추세": "#2a78d6", "수급": "#1baf7a", "심리·리스크": "#eda100"}
 
 TRILLION = 1e12  # 조원
 HUNDRED_MILLION = 1e8  # 억원
@@ -83,6 +91,20 @@ def _draw_volume(fig, df, row, opt):
     )
 
 
+def _draw_by_investor(fig, df, row, opt):
+    for col, name in (("foreign_net_roll", "외국인"), ("inst_net_roll", "기관"), ("retail_net_roll", "개인")):
+        if col in df and df[col].notna().any():
+            _line(fig, df.index, df[col] / TRILLION, f"{name} {opt['flow_window']}일 합", COLORS[col], row, "조원")
+    fig.add_hline(y=0, line=dict(color=GRID, width=1), row=row, col=1)
+
+
+def _draw_cum_by_investor(fig, df, row, opt):
+    for col, name in (("foreign_net_cum", "외국인"), ("inst_net_cum", "기관"), ("retail_net_cum", "개인")):
+        if col in df and df[col].notna().any():
+            _line(fig, df.index, df[col] / TRILLION, f"{name} 누적", COLORS[col], row, "조원")
+    fig.add_hline(y=0, line=dict(color=GRID, width=1), row=row, col=1)
+
+
 def _draw_share(fig, df, row, opt):
     _line(fig, df.index, df["retail_share"], "개인 거래대금 비중", COLORS["retail_share"], row, "%")
 
@@ -113,6 +135,10 @@ def _draw_sentiment(fig, df, row, opt):
 PANELS: dict[str, Panel] = {
     "개인 순매수(일별)": Panel("개인 순매수 (억원) · 막대 빨강 순매수/파랑 순매도, 선 = 이동평균", ("retail_net",), _draw_net),
     "개인 누적 순매수": Panel("개인 누적 순매수 (조원)", ("retail_net_cum",), _draw_cum),
+    "투자자별 순매수(이동합)": Panel("투자자별 순매수 이동합 (조원) · 파랑 외국인, 초록 기관, 주황 개인",
+                                ("foreign_net_roll",), _draw_by_investor),
+    "투자자별 누적 순매수": Panel("투자자별 누적 순매수 (조원) · 파랑 외국인, 초록 기관, 주황 개인",
+                             ("foreign_net_cum",), _draw_cum_by_investor),
     "개인 거래량": Panel("개인 거래량 (백만주, 매수+매도)", ("retail_volume",), _draw_volume),
     "개인 거래대금 비중": Panel("개인 거래대금 비중 (%)", ("retail_share",), _draw_share),
     "투자자예탁금": Panel("투자자예탁금 (조원)", ("deposit",), _draw_deposit),
@@ -199,6 +225,8 @@ def build_main_chart(
 COMPARE_SERIES = {
     "kospi_close": "KOSPI",
     "retail_net_cum": "개인 누적 순매수",
+    "foreign_net_cum": "외국인 누적 순매수",
+    "inst_net_cum": "기관 누적 순매수",
     "retail_share": "개인 거래대금 비중",
     "deposit": "투자자예탁금",
     "credit": "신용융자(전체)",
@@ -252,4 +280,92 @@ def build_corr_heatmap(corr: pd.DataFrame) -> go.Figure:
     )
     fig.update_layout(height=80 + 48 * len(corr), margin=dict(l=10, r=10, t=10, b=10))
     fig.update_yaxes(autorange="reversed")
+    return fig
+
+
+# ---------------------------------------------------------------------------
+# 시장 위치
+# ---------------------------------------------------------------------------
+HEAT_SCALE = [[0, DOWN], [0.5, NEUTRAL], [1, UP]]  # 0 = 침체·저평가(파랑) ↔ 100 = 과열·고평가(빨강)
+
+
+def _heat_color(v: float) -> str:
+    """0~100 → 파랑·회색·빨강 사이 보간."""
+    def mix(a, b, t):
+        a, b = [int(a[i:i + 2], 16) for i in (1, 3, 5)], [int(b[i:i + 2], 16) for i in (1, 3, 5)]
+        return "#" + "".join(f"{round(x + (y - x) * t):02x}" for x, y in zip(a, b))
+
+    v = min(max(v, 0), 100)
+    return mix(DOWN, NEUTRAL, v / 50) if v < 50 else mix(NEUTRAL, UP, (v - 50) / 50)
+
+
+def _zone_bands(fig, row=None, col=None, axis="y"):
+    kw = {} if row is None else dict(row=row, col=col)
+    add = fig.add_hrect if axis == "y" else fig.add_vrect
+    add(0, 20, fillcolor=DOWN, opacity=0.07, line_width=0, layer="below", **kw)
+    add(80, 100, fillcolor=UP, opacity=0.07, line_width=0, layer="below", **kw)
+
+
+def build_position_bars(snap: pd.DataFrame) -> go.Figure:
+    """지표별 온도(0~100) 가로 막대. 카테고리 순서대로 위에서 아래로."""
+    if snap.empty:
+        return go.Figure()
+    labels = [f"{r['지표']}  <span style='color:{MUTED}'>{r['카테고리']}</span>" for _, r in snap.iterrows()]
+    values = [
+        f"{r['현재값']:,.{int(r['digits'])}f}{r['단위']}" for _, r in snap.iterrows()
+    ]
+    fig = go.Figure(
+        go.Bar(
+            x=snap["온도"], y=labels, orientation="h",
+            marker_color=[_heat_color(v) for v in snap["온도"]],
+            marker_line=dict(color=MUTED, width=0.5),
+            text=[f"{h:.0f} · {w}" for h, w in zip(snap["온도"], snap["해석"])],
+            textposition="outside", cliponaxis=False,
+            customdata=list(zip(values, snap["백분위"], snap["기준일"].dt.strftime("%Y-%m-%d"))),
+            hovertemplate="%{y}<br>현재값 %{customdata[0]} (%{customdata[2]})"
+                          "<br>과거 분포 백분위 %{customdata[1]:.0f}%<br>온도 %{x:.0f}<extra></extra>",
+        )
+    )
+    _zone_bands(fig, axis="x")
+    for x in (20, 50, 80):
+        fig.add_vline(x=x, line=dict(color=GRID, width=1, dash="dot" if x != 50 else "solid"))
+    fig.update_layout(
+        height=60 + 30 * len(snap), margin=dict(l=10, r=110, t=10, b=30), showlegend=False,
+        xaxis=dict(range=[0, 100], tickvals=[0, 20, 50, 80, 100],
+                   ticktext=["0 침체·저평가", "20", "50", "80", "100 과열·고평가"]),
+        bargap=0.25,
+    )
+    fig.update_yaxes(autorange="reversed")
+    return fig
+
+
+def build_position_history(df: pd.DataFrame, scores: pd.DataFrame, categories: list[str]) -> go.Figure:
+    """위: KOSPI, 아래: 종합 점수(굵게) + 카테고리 점수."""
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.06,
+                        row_heights=[1.2, 1.0], subplot_titles=["KOSPI", "시장 위치 점수 (0 침체 ~ 100 과열)"])
+    if "kospi_close" in df:
+        _line(fig, df.index, df["kospi_close"], "KOSPI", COLORS["kospi_close"], 1, "pt")
+    for cat in categories:
+        if cat in scores and scores[cat].notna().any():
+            fig.add_trace(go.Scatter(
+                x=scores.index, y=scores[cat], name=cat, mode="lines",
+                line=dict(color=CATEGORY_COLORS.get(cat, MUTED), width=1.3), opacity=0.8,
+                hovertemplate="%{y:.0f}",
+            ), row=2, col=1)
+    if "overall" in scores:
+        fig.add_trace(go.Scatter(
+            x=scores.index, y=scores["overall"], name="종합", mode="lines",
+            line=dict(color="#e87ba4", width=2.8), hovertemplate="%{y:.0f}",
+        ), row=2, col=1)
+    _zone_bands(fig, row=2, col=1)
+    fig.add_hline(y=50, line=dict(color=GRID, width=1), row=2, col=1)
+    fig.update_yaxes(range=[0, 100], tickvals=[0, 20, 50, 80, 100], row=2, col=1)
+    fig.update_layout(
+        height=560, hovermode="x unified", margin=dict(l=10, r=10, t=40, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.12, x=0),
+    )
+    fig.update_xaxes(rangebreaks=_holiday_breaks(df.index), showspikes=True,
+                     spikemode="across", spikethickness=1, spikedash="dot")
+    for ann in fig.layout.annotations:
+        ann.update(x=0, xanchor="left", font=dict(size=13))
     return fig

@@ -16,6 +16,11 @@ SENTIMENT_COMPONENTS = {
 DERIVED_LABELS = {
     "retail_net_cum": "개인 누적 순매수(원)",
     "retail_net_roll": "개인 순매수 이동합(원)",
+    "foreign_net_cum": "외국인 누적 순매수(원)",
+    "foreign_net_roll": "외국인 순매수 이동합(원)",
+    "inst_net_cum": "기관 누적 순매수(원)",
+    "inst_net_roll": "기관 순매수 이동합(원)",
+    "credit_to_mcap": "신용융자/시가총액(%)",
     "retail_volume": "개인 거래량(주, 매수+매도)",
     "retail_value": "개인 거래대금(원, 매수+매도)",
     "retail_share": "개인 거래대금 비중(%)",
@@ -26,6 +31,11 @@ DERIVED_LABELS = {
     "kospi_ret": "KOSPI 수익률(%)",
     "kospi_fwd_ret": "KOSPI 향후 수익률(%)",
 }
+
+
+def cumulative(net: pd.Series) -> pd.Series:
+    """첫 유효값부터 누적 (앞쪽 결측 구간은 결측으로 둔다)."""
+    return net.fillna(0).cumsum().where(net.notna().cummax())
 
 
 def rolling_zscore(s: pd.Series, window: int) -> pd.Series:
@@ -43,10 +53,11 @@ def add_indicators(df: pd.DataFrame, flow_window: int = 20, z_window: int = 120)
     out = df.copy()
     has = out.columns.__contains__
 
-    if has("retail_net"):
-        net = out["retail_net"]
-        out["retail_net_cum"] = net.fillna(0).cumsum().where(net.notna().cummax())
-        out["retail_net_roll"] = net.rolling(flow_window, min_periods=flow_window // 2).sum()
+    for who in ("retail", "foreign", "inst"):
+        if has(f"{who}_net"):
+            net = out[f"{who}_net"]
+            out[f"{who}_net_cum"] = cumulative(net)
+            out[f"{who}_net_roll"] = net.rolling(flow_window, min_periods=flow_window // 2).sum()
     if has("retail_buy_volume") and has("retail_sell_volume"):
         out["retail_volume"] = out["retail_buy_volume"] + out["retail_sell_volume"]
     if has("retail_buy_value") and has("retail_sell_value"):
@@ -61,6 +72,10 @@ def add_indicators(df: pd.DataFrame, flow_window: int = 20, z_window: int = 120)
         out["credit_chg"] = out[credit_col].pct_change(flow_window, fill_method=None) * 100
         if has("deposit"):
             out["credit_to_deposit"] = out[credit_col] / out["deposit"] * 100
+        if has("kospi_mcap"):
+            # 신용융자(유가증권)가 있으면 KOSPI 시가총액과 같은 시장끼리 비교한다
+            num = out["credit_kospi"] if has("credit_kospi") and out["credit_kospi"].notna().any() else out[credit_col]
+            out["credit_to_mcap"] = num / out["kospi_mcap"] * 100
     if has("kospi_close"):
         close = out["kospi_close"]
         out["kospi_ret"] = close.pct_change(flow_window, fill_method=None) * 100
@@ -120,6 +135,19 @@ def make_demo_data(start="2021-01-01", end=None, seed: int = 7) -> pd.DataFrame:
     deposit = 55e12 * np.exp(np.cumsum(regime * 1.5 + rng.normal(0, 0.006, n)))
     credit = 18e12 * np.exp(np.cumsum(ret * 0.35 + regime + rng.normal(0, 0.002, n)))
 
+    # 외국인은 추세 추종, 기관은 개인과 외국인의 나머지 (합계 ≈ 0)
+    foreign_net = ret * 2e13 + rng.normal(0, 2.5e11, n)
+    inst_net = -(retail_net + foreign_net) + rng.normal(0, 5e10, n)
+    mcap = 1.6e15 * close / 2900
+    # 이익은 지수를 1년가량 늦게, 완만하게 따라간다 → PER 은 대략 8~16배에서 움직임
+    eps = pd.Series(close).rolling(250, min_periods=1).mean().values / 11.5
+    per = close / eps * np.exp(rng.normal(0, 0.01, n))
+    pbr = per * 0.085 + rng.normal(0, 0.005, n)
+    div_yield = 22 / per + rng.normal(0, 0.02, n)
+    bond_3y = np.clip(2.8 + np.cumsum(rng.normal(0, 0.02, n)), 0.5, 6)
+    bond_10y = bond_3y + 0.3 + rng.normal(0, 0.03, n)
+    usdkrw = 1250 * np.exp(np.cumsum(-ret * 0.25 + rng.normal(0, 0.003, n)))
+
     return pd.DataFrame(
         {
             "kospi_open": open_,
@@ -136,6 +164,15 @@ def make_demo_data(start="2021-01-01", end=None, seed: int = 7) -> pd.DataFrame:
             "deposit": deposit,
             "credit": credit,
             "credit_kospi": credit * 0.55,
+            "foreign_net": foreign_net,
+            "inst_net": inst_net,
+            "kospi_mcap": mcap,
+            "per": per,
+            "pbr": pbr,
+            "div_yield": div_yield,
+            "bond_3y": bond_3y,
+            "bond_10y": bond_10y,
+            "usdkrw": usdkrw,
         },
         index=idx,
     )
