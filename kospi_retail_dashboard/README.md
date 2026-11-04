@@ -85,6 +85,25 @@ python kospi_retail_dashboard/web/build_web.py --years 5 --out kospi_simulator.h
 `KRX_ID`·`KRX_PW` 환경변수가 있으면 PER·PBR·배당수익률·시가총액 이력도 들어갑니다.
 데이터가 없는 페이지는 KRX [11003] 개별지수 시세 추이·[11007] PER/PBR/배당수익률 CSV나 붙여넣은 표를 직접 불러올 수 있습니다.
 
+## KOSPI 가치 추적기 (`tracker/`)
+
+KOSPI가 과거보다 비싼지 싼지를 실제 데이터로 추적합니다.
+
+```bash
+python kospi_retail_dashboard/tracker/collect.py     # tracker/data/kospi_value.csv 에 일별 데이터 쌓기 (2005년~)
+python kospi_retail_dashboard/tracker/build.py --standalone --out kospi_value_tracker.html
+```
+
+| 항목 | 출처 |
+|---|---|
+| KOSPI 종가·시가총액 | KRX [11003] 개별지수 시세 추이 (실패 시 네이버, 시가총액 제외) |
+| PER·PBR·배당수익률 | KRX [11007] PER/PBR/배당수익률 |
+| 국고채 10년 금리 | 한국은행 ECOS 817Y002 (환경변수 `ECOS_API_KEY` 가 있을 때) |
+
+- KRX가 로그인을 요구하면 환경변수 `KRX_ID`·`KRX_PW` 를 설정합니다.
+- 페이지: 종합 점수(PER·PBR·배당수익률·일드갭이 비교 기간 중 몇 % 지점인지), 지표별 카드, 과거 배수 분포로 본 적정 KOSPI, 지표 이력, PBR·PER 밴드.
+- 다시 실행하면 최근 20일만 다시 받아 합칩니다.
+
 ## 테스트
 
 ```bash
@@ -100,6 +119,7 @@ cd kospi_retail_dashboard && python -m pytest -q tests
 - `simulator.py` — KOSPI 가격 시뮬레이터 화면
 - `simulation.py` — 가상 경로, 기술적 지표, 다음 거래일 가격 역산, 밸류에이션 계산
 - `sim_charts.py` — 시뮬레이터 차트
+- `tracker/` — KOSPI 가치 추적기 (`collect.py` 수집, `build.py` 페이지 만들기, `tracker_page.html` 화면)
 - `web/simulator_page.html` — 웹페이지 버전, `web/build_web.py` — 실제 데이터를 넣은 HTML 만들기
 
 본 앱의 지표는 참고용이며 투자 판단의 근거가 아닙니다.

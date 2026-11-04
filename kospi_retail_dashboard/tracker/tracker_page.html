@@ -1,0 +1,531 @@
+<title>KOSPI 가치 추적기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a valuation dossier. Verdict first (level + composite gauge), then one card per measure,
+   then the history behind each number. Korean convention: up = red, down = blue. */
+:root {
+  --bg: #f3f4f7;
+  --surface: #ffffff;
+  --surface-2: #eef0f4;
+  --ink: #121826;
+  --ink-2: #465066;
+  --muted: #77809a;
+  --line: #dce0e8;
+  --accent: #1d4ed8;
+  --accent-soft: rgba(29, 78, 216, 0.10);
+  --on-accent: #ffffff;
+  --up: #d7263d;
+  --down: #1f6fd6;
+  --cheap: #138a63;
+  --fair: #9aa3b5;
+  --rich: #c2410c;
+  --band: rgba(29, 78, 216, 0.08);
+  --font-ui: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1117; --surface: #161b24; --surface-2: #1e2531; --ink: #e9edf4; --ink-2: #b7c0cf; --muted: #8590a5;
+    --line: #2a3341; --accent: #7aa2ff; --accent-soft: rgba(122, 162, 255, 0.14); --on-accent: #0e1117;
+    --up: #ff6470; --down: #5d9dff; --cheap: #34c38f; --fair: #6b7487; --rich: #ff8a4c; --band: rgba(122, 162, 255, 0.10);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1117; --surface: #161b24; --surface-2: #1e2531; --ink: #e9edf4; --ink-2: #b7c0cf; --muted: #8590a5;
+  --line: #2a3341; --accent: #7aa2ff; --accent-soft: rgba(122, 162, 255, 0.14); --on-accent: #0e1117;
+  --up: #ff6470; --down: #5d9dff; --cheap: #34c38f; --fair: #6b7487; --rich: #ff8a4c; --band: rgba(122, 162, 255, 0.10);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.55; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 16px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 16px; font-weight: 600; }
+p { margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button, input, select { font: inherit; color: inherit; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.note { font-size: 12.5px; color: var(--muted); }
+.up { color: var(--up); } .down { color: var(--down); }
+
+header.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; }
+.asof { font-size: 12.5px; color: var(--muted); }
+.asof b { color: var(--ink-2); font-weight: 600; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; flex-wrap: wrap; }
+.seg button { border: 0; background: transparent; padding: 5px 10px; cursor: pointer; font-size: 13px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+/* verdict */
+.verdict { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.6fr); gap: 16px; }
+@media (max-width: 820px) { .verdict { grid-template-columns: minmax(0, 1fr); } }
+.level .big { font-family: var(--font-num); font-size: 40px; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; }
+.level .chg { font-family: var(--font-num); font-size: 15px; font-weight: 600; }
+.gauge-score { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.gauge-score .big { font-family: var(--font-num); font-size: 40px; font-weight: 600; line-height: 1.1; }
+.gauge-score .word { font-size: 20px; font-weight: 700; }
+.gauge { position: relative; height: 14px; border-radius: 7px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; overflow: hidden; }
+.gauge span:nth-child(1) { background: var(--cheap); }
+.gauge span:nth-child(2) { background: color-mix(in srgb, var(--cheap) 55%, var(--fair)); }
+.gauge span:nth-child(3) { background: var(--fair); }
+.gauge span:nth-child(4) { background: color-mix(in srgb, var(--rich) 55%, var(--fair)); }
+.gauge span:nth-child(5) { background: var(--rich); }
+.gauge-wrap { position: relative; padding-top: 12px; }
+.marker { position: absolute; top: 0; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 10px solid var(--ink); transform: translateX(-7px); }
+.gauge-ticks { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+.parts { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { display: inline-flex; gap: 6px; align-items: baseline; padding: 2px 9px; border-radius: 999px; background: var(--surface-2); font-size: 12.5px; color: var(--ink-2); }
+.pill b { font-family: var(--font-num); color: var(--ink); font-weight: 600; }
+
+/* measure cards */
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .cards { grid-template-columns: minmax(0, 1fr); } }
+.m { display: grid; gap: 6px; }
+.m .k { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+.m .v { font-family: var(--font-num); font-size: 26px; font-weight: 600; line-height: 1.2; }
+.m .v small { font-size: 14px; color: var(--muted); font-weight: 500; margin-left: 2px; }
+.m .row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); font-family: var(--font-num); }
+.bar { position: relative; height: 6px; border-radius: 3px; background: var(--surface-2); }
+.bar i { position: absolute; top: -3px; width: 3px; height: 12px; border-radius: 2px; background: var(--ink); transform: translateX(-1.5px); }
+.bar .iqr { position: absolute; top: 0; bottom: 0; background: var(--line); border-radius: 3px; }
+.tag { font-size: 11.5px; padding: 0 7px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+.tag.cheap { color: var(--cheap); background: color-mix(in srgb, var(--cheap) 14%, transparent); }
+.tag.rich { color: var(--rich); background: color-mix(in srgb, var(--rich) 14%, transparent); }
+.tag.fair { color: var(--ink-2); background: var(--surface-2); }
+svg.spark { width: 100%; height: 34px; display: block; color: var(--accent); }
+
+.grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .grid-2 { grid-template-columns: minmax(0, 1fr); } }
+.chart { width: 100%; height: 400px; }
+@media (max-width: 600px) { .chart { height: 320px; } }
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th { font-weight: 500; color: var(--muted); font-size: 12px; }
+th:first-child, td:first-child { text-align: left; }
+td.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+td .sub { display: block; font-size: 11.5px; color: var(--muted); }
+tr.mid td { background: var(--accent-soft); }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 12px; }
+.field { display: grid; gap: 4px; font-size: 12.5px; color: var(--ink-2); }
+.field input { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--surface-2); font-family: var(--font-num); min-width: 0; width: 100%; }
+.field .hint { font-size: 11.5px; color: var(--muted); }
+.empty { text-align: left; }
+ul.src { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--muted); display: grid; gap: 2px; }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.1/echarts.min.js"></script>
+<script type="application/json" id="tracker-data">null</script>
+
+<div class="wrap">
+  <header class="top">
+    <h1>KOSPI 가치 추적기</h1>
+    <p class="asof" id="asof"></p>
+  </header>
+
+  <div class="card empty" id="empty" hidden>
+    <h2>아직 실제 데이터가 없습니다</h2>
+    <p>이 페이지는 <code>tracker/collect.py</code>로 KRX·한국은행 데이터를 받은 뒤 <code>tracker/build.py</code>로 만들어야 숫자가 나옵니다. 가짜 숫자는 보여 주지 않습니다.</p>
+  </div>
+
+  <div id="main" hidden style="display:grid;gap:16px">
+    <section class="verdict">
+      <div class="card level">
+        <div class="card-head"><h2>KOSPI</h2><span class="note" id="level-date"></span></div>
+        <div class="big" id="level"></div>
+        <div class="chg" id="level-chg"></div>
+        <p class="note" id="level-range"></p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>지금 KOSPI는 과거보다 비싼가</h2>
+          <div class="seg" role="group" aria-label="비교 기간" id="win-seg">
+            <button type="button" data-win="5">5년</button><button type="button" data-win="10">10년</button><button type="button" data-win="all">전체</button>
+          </div>
+        </div>
+        <div class="gauge-score"><span class="big" id="score"></span><span class="word" id="score-word"></span><span class="note" id="score-note"></span></div>
+        <div class="gauge-wrap"><div class="marker" id="marker"></div><div class="gauge"><span></span><span></span><span></span><span></span><span></span></div></div>
+        <div class="gauge-ticks"><span>싸다</span><span>보통</span><span>비싸다</span></div>
+        <div class="parts" id="parts"></div>
+        <p class="note">점수는 PER·PBR·배당수익률·일드갭이 비교 기간 중 몇 % 지점인지를 "비싼 쪽 = 높게" 맞춰 평균한 값입니다. 0이면 기간 중 가장 싼 수준, 100이면 가장 비싼 수준.</p>
+      </div>
+    </section>
+
+    <section class="cards" id="cards" aria-label="지표별 현재 위치"></section>
+
+    <section class="grid-2">
+      <div class="card">
+        <div class="card-head"><h2>적정 KOSPI (과거 배수 기준)</h2></div>
+        <p class="note" id="fair-note"></p>
+        <div class="tbl-wrap"><table id="fair"></table></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>가정</h2></div>
+        <div class="form-grid">
+          <label class="field">국고채 10년 금리 (%)<input id="in-bond" type="number" step="0.01" min="0"><span class="hint" id="h-bond"></span></label>
+          <label class="field">명목 GDP (조원)<input id="in-gdp" type="number" step="1" min="0"><span class="hint">2024년 약 2,550조원 (한국은행). 최신 값으로 바꿀 수 있습니다</span></label>
+        </div>
+        <p class="note">PER·PBR·배당수익률은 KRX가 발표하는 KOSPI 지수 값입니다. KRX 지수 PER은 공시된 연간 실적 기준이라 실적 변화가 늦게 반영됩니다. 입력값은 이 브라우저에만 저장됩니다.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 id="hist-title">지표 이력</h2><div class="seg" role="group" aria-label="지표" id="metric-seg"></div></div>
+      <div id="hist-chart" class="chart" role="img" aria-label="선택한 지표의 이력과 분포 기준선"></div>
+      <p class="note">실선은 비교 기간의 중앙값, 점선은 하위·상위 25%, 옅은 점선은 10%·90% 지점입니다.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>밴드 차트</h2><div class="seg" role="group" aria-label="밴드 종류" id="band-seg"></div></div>
+      <div id="band-chart" class="chart" role="img" aria-label="KOSPI와 PBR 또는 PER 배수 밴드"></div>
+      <p class="note" id="band-note"></p>
+    </section>
+
+    <section class="card">
+      <h2>데이터</h2>
+      <ul class="src" id="sources"></ul>
+      <p class="note">가상의 지수 수준에서 지표가 어떻게 바뀌는지는 <a href="https://claude.ai/artifact/AjVwM3aytswDHU2XAypRDD" target="_blank" rel="noopener">KOSPI 가격 시뮬레이터</a>에서 볼 수 있습니다. 모든 수치는 참고용이며 투자 판단의 근거가 아닙니다.</p>
+    </section>
+  </div>
+</div>
+
+<script id="tracker-core">
+/* 순수 계산: 기간 필터, 분위수, 백분위, 종합 점수, 적정 지수. DOM 을 쓰지 않는다. */
+const Track = (() => {
+  const fin = Number.isFinite;
+  const METRICS = {
+    pbr: { label: 'PBR', unit: '배', d: 2, dir: 1 },
+    per: { label: 'PER', unit: '배', d: 2, dir: 1 },
+    dy: { label: '배당수익률', unit: '%', d: 2, dir: -1 },
+    gap: { label: '일드갭', unit: '%p', d: 2, dir: -1 },
+    roe: { label: 'ROE (PBR÷PER)', unit: '%', d: 1, dir: 0 },
+    level: { label: 'KOSPI', unit: '', d: 0, dir: 0 },
+  };
+  function parse(payload) {
+    const rows = payload.rows.map((r) => ({ d: r[0], c: r[1], mcap: r[2], per: r[3], pbr: r[4], dy: r[5], ktb: r[6] }));
+    rows.sort((a, b) => (a.d < b.d ? -1 : 1));
+    return rows;
+  }
+  function series(rows, key, bondOverride) {
+    return rows.map((r, i) => {
+      const v = (x) => (fin(x) && x > 0 ? x : NaN);
+      switch (key) {
+        case 'level': return v(r.c);
+        case 'per': return v(r.per);
+        case 'pbr': return v(r.pbr);
+        case 'dy': return v(r.dy);
+        case 'roe': return fin(r.per) && fin(r.pbr) && r.per > 0 ? (r.pbr / r.per) * 100 : NaN;
+        case 'gap': {
+          const k = fin(r.ktb) ? r.ktb : i === rows.length - 1 && fin(bondOverride) ? bondOverride : NaN;
+          return fin(r.per) && r.per > 0 && fin(k) ? 100 / r.per - k : NaN;
+        }
+        default: return NaN;
+      }
+    });
+  }
+  function windowStart(rows, win) {
+    if (win === 'all') return 0;
+    const last = new Date(rows[rows.length - 1].d + 'T00:00:00Z');
+    last.setUTCFullYear(last.getUTCFullYear() - Number(win));
+    const iso = last.toISOString().slice(0, 10);
+    const i = rows.findIndex((r) => r.d >= iso);
+    return i < 0 ? 0 : i;
+  }
+  function quantile(sorted, q) {
+    if (!sorted.length) return NaN;
+    const pos = (sorted.length - 1) * q, lo = Math.floor(pos), hi = Math.ceil(pos);
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+  }
+  function stats(values, current) {
+    const h = values.filter(fin);
+    if (h.length < 20 || !fin(current)) return null;
+    const s = [...h].sort((a, b) => a - b);
+    const mean = h.reduce((a, b) => a + b, 0) / h.length;
+    const sd = Math.sqrt(h.reduce((a, b) => a + (b - mean) ** 2, 0) / (h.length - 1));
+    return {
+      n: h.length, pct: (h.filter((x) => x < current).length / h.length) * 100,
+      min: s[0], max: s[s.length - 1], q10: quantile(s, 0.1), q25: quantile(s, 0.25), q50: quantile(s, 0.5),
+      q75: quantile(s, 0.75), q90: quantile(s, 0.9), mean, sd, z: sd > 0 ? (current - mean) / sd : 0,
+    };
+  }
+  // 비쌈 점수: 배수(PER·PBR)는 높을수록, 수익률(배당·일드갭)은 낮을수록 비싸다
+  function richness(metric, st) { const dir = METRICS[metric].dir; return dir > 0 ? st.pct : 100 - st.pct; }
+  function verdict(score) {
+    if (!fin(score)) return ['', 'fair'];
+    if (score < 20) return ['매우 싼 편', 'cheap'];
+    if (score < 40) return ['싼 편', 'cheap'];
+    if (score <= 60) return ['보통', 'fair'];
+    if (score <= 80) return ['비싼 편', 'rich'];
+    return ['매우 비싼 편', 'rich'];
+  }
+  function composite(rows, win, bondOverride) {
+    const start = windowStart(rows, win), parts = [];
+    for (const m of ['per', 'pbr', 'dy', 'gap']) {
+      const s = series(rows, m, bondOverride), cur = s[s.length - 1];
+      const st = stats(s.slice(start), cur);
+      if (st) parts.push({ metric: m, value: cur, st, rich: richness(m, st) });
+    }
+    const score = parts.length ? parts.reduce((a, p) => a + p.rich, 0) / parts.length : NaN;
+    return { score, parts };
+  }
+  // 적정 KOSPI: 지금의 1포인트당 순자산·이익·배당에 과거 배수 분포를 곱한다
+  function fairLevels(rows, win) {
+    const last = rows[rows.length - 1], start = windowStart(rows, win);
+    const out = {};
+    const base = { pbr: fin(last.pbr) ? last.c / last.pbr : NaN, per: fin(last.per) ? last.c / last.per : NaN, dy: fin(last.dy) ? (last.c * last.dy) / 100 : NaN };
+    for (const m of ['pbr', 'per', 'dy']) {
+      const s = series(rows, m).slice(start).filter(fin).sort((a, b) => a - b);
+      if (s.length < 20 || !fin(base[m])) continue;
+      out[m] = [0.1, 0.25, 0.5, 0.75, 0.9].map((q) => {
+        const mult = quantile(s, q);
+        return { q, mult, level: m === 'dy' ? (base[m] / mult) * 100 : base[m] * mult };
+      });
+    }
+    return { base, out };
+  }
+  function changeSince(rows, values, days) {
+    const last = new Date(rows[rows.length - 1].d + 'T00:00:00Z');
+    last.setUTCDate(last.getUTCDate() - days);
+    const iso = last.toISOString().slice(0, 10);
+    for (let i = rows.length - 1; i >= 0; i--) if (rows[i].d <= iso && fin(values[i])) return values[i];
+    return NaN;
+  }
+  return { METRICS, parse, series, windowStart, quantile, stats, richness, verdict, composite, fairLevels, changeSince };
+})();
+if (typeof module !== 'undefined') module.exports = Track;
+</script>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const fin = Number.isFinite;
+  const STORE = 'kospi-tracker-v1';
+  const f = (v, d = 2) => (fin(v) ? v.toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d }) : '–');
+  const sf = (v, d = 2) => (fin(v) ? (v > 0 ? '+' : v < 0 ? '−' : '±') + f(Math.abs(v), d) : '–');
+  const cls = (v) => (v > 0 ? 'up' : v < 0 ? 'down' : '');
+  const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  let payload = null;
+  try { payload = JSON.parse($('tracker-data').textContent); } catch (e) { payload = null; }
+  if (!payload || !payload.rows || !payload.rows.length) { $('empty').hidden = false; $('asof').textContent = '데이터 없음'; return; }
+
+  const rows = Track.parse(payload);
+  const last = rows[rows.length - 1];
+  const hasKtb = rows.some((r) => fin(r.ktb));
+  const state = { win: '10', metric: 'pbr', band: 'pbr', bond: null, gdp: 2550 };
+  try { const s = JSON.parse(localStorage.getItem(STORE) || '{}'); Object.assign(state, s); } catch (e) { /* 저장 불가 */ }
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify({ win: state.win, metric: state.metric, band: state.band, bond: state.bond, gdp: state.gdp })); } catch (e) { /* 무시 */ } };
+  const bondNow = () => (hasKtb ? NaN : state.bond);
+  const charts = {};
+  const chart = (id) => {
+    if (typeof echarts === 'undefined') return null;
+    if (!charts[id]) charts[id] = echarts.init($(id), null, { renderer: 'canvas' });
+    return charts[id];
+  };
+
+  $('main').hidden = false;
+  $('main').style.display = 'grid';
+  const upd = payload.updated_at ? ` · 갱신 ${payload.updated_at.replace('T', ' ').slice(0, 16)}` : '';
+  $('asof').innerHTML = `<b>${last.d}</b> 종가 기준 · ${rows[0].d}부터 ${rows.length.toLocaleString()}거래일${esc(upd)}`;
+
+  function renderLevel() {
+    const prev = rows[rows.length - 2];
+    $('level').textContent = f(last.c, 2);
+    $('level-date').textContent = last.d;
+    if (prev) { const ch = last.c - prev.c; $('level-chg').innerHTML = `<span class="${cls(ch)}">${sf(ch, 2)} (${sf((ch / prev.c) * 100, 2)}%)</span> <span class="muted">전 거래일 대비</span>`; }
+    const lv = Track.series(rows, 'level'), start = Track.windowStart(rows, state.win);
+    const st = Track.stats(lv.slice(start), last.c);
+    const y1 = Track.changeSince(rows, lv, 365);
+    $('level-range').textContent = (st ? `${winLabel()} 범위 ${f(st.min, 0)} ~ ${f(st.max, 0)} · ` : '') + (fin(y1) ? `1년 전 ${f(y1, 0)} (${sf((last.c / y1 - 1) * 100, 1)}%)` : '');
+  }
+  const winLabel = () => (state.win === 'all' ? `${rows[0].d.slice(0, 4)}년 이후` : `최근 ${state.win}년`);
+
+  function renderVerdict() {
+    const { score, parts } = Track.composite(rows, state.win, bondNow());
+    const [word, tone] = Track.verdict(score);
+    $('score').textContent = fin(score) ? f(score, 0) : '–';
+    $('score-word').textContent = word;
+    $('score-word').style.color = tone === 'cheap' ? css('--cheap') : tone === 'rich' ? css('--rich') : css('--ink-2');
+    $('score-note').textContent = `${winLabel()} 대비`;
+    $('marker').style.left = fin(score) ? `${score}%` : '50%';
+    $('parts').innerHTML = parts.map((p) => {
+      const m = Track.METRICS[p.metric];
+      return `<span class="pill">${m.label} <b>${f(p.value, m.d)}${m.unit}</b> 비쌈 ${f(p.rich, 0)}</span>`;
+    }).join('') || '<span class="note">PER·PBR 이력이 없어 점수를 낼 수 없습니다.</span>';
+    for (const b of $('win-seg').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.win === state.win));
+  }
+
+  function spark(values) {
+    const pts = values.slice(-250).map((v, i) => [i, v]).filter(([, v]) => fin(v));
+    if (pts.length < 2) return '';
+    const ys = pts.map((p) => p[1]), lo = Math.min(...ys), hi = Math.max(...ys), n = 249;
+    const path = pts.map(([x, y]) => `${((x / n) * 100).toFixed(2)},${(30 - ((y - lo) / (hi - lo || 1)) * 28).toFixed(2)}`).join(' ');
+    const [lx, ly] = path.split(' ').pop().split(',');
+    return `<svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true"><polyline points="${path}" fill="none" stroke="currentColor" stroke-width="1.3" vector-effect="non-scaling-stroke"/><circle cx="${lx}" cy="${ly}" r="1.6" fill="currentColor"/></svg>`;
+  }
+
+  function renderCards() {
+    const start = Track.windowStart(rows, state.win), html = [];
+    for (const key of ['per', 'pbr', 'dy', 'gap', 'roe']) {
+      const m = Track.METRICS[key], s = Track.series(rows, key, bondNow()), cur = s[s.length - 1];
+      if (!fin(cur)) continue;
+      const st = Track.stats(s.slice(start), cur);
+      const m1 = Track.changeSince(rows, s, 30), y1 = Track.changeSince(rows, s, 365);
+      let tag = '';
+      if (st && m.dir !== 0) {
+        const rich = Track.richness(key, st), [word, tone] = Track.verdict(rich);
+        tag = `<span class="tag ${tone}">${word}</span>`;
+      }
+      const bar = st ? `<div class="bar" title="${winLabel()} 분포"><span class="iqr" style="left:${pos(st, st.q25)}%;width:${pos(st, st.q75) - pos(st, st.q25)}%"></span><i style="left:${pos(st, cur)}%"></i></div>
+        <div class="row"><span>${f(st.min, m.d)}</span><span>중앙 ${f(st.q50, m.d)}</span><span>${f(st.max, m.d)}</span></div>` : '';
+      html.push(`<div class="card m"><div class="k"><span>${m.label}</span>${tag}</div>
+        <div class="v">${f(cur, m.d)}<small>${m.unit}</small></div>
+        <div class="row"><span>${st ? `${winLabel()} 중 ${f(st.pct, 0)}% 지점` : '이력 부족'}</span><span>${fin(y1) ? `1년 전 ${f(y1, m.d)}` : fin(m1) ? `1개월 전 ${f(m1, m.d)}` : ''}</span></div>
+        ${bar}${spark(s)}</div>`);
+    }
+    if (fin(last.mcap)) {
+      const b = state.gdp > 0 ? (last.mcap / state.gdp) * 100 : NaN;
+      html.push(`<div class="card m"><div class="k"><span>시가총액 / 명목 GDP</span></div>
+        <div class="v">${f(b, 0)}<small>%</small></div>
+        <div class="row"><span>시가총액 ${f(last.mcap, 0)}조원</span><span>GDP ${f(state.gdp, 0)}조원</span></div>
+        <p class="note">GDP 이력이 없어 과거 비교는 하지 않습니다.</p>${spark(Track.series(rows, 'level'))}</div>`);
+    }
+    $('cards').innerHTML = html.join('');
+  }
+  const pos = (st, v) => Math.max(0, Math.min(100, ((v - st.min) / (st.max - st.min || 1)) * 100));
+
+  function renderFair() {
+    const { base, out } = Track.fairLevels(rows, state.win);
+    const cols = [['pbr', 'PBR 기준', '배'], ['per', 'PER 기준', '배'], ['dy', '배당수익률 기준', '%']].filter(([k]) => out[k]);
+    if (!cols.length) { $('fair').innerHTML = ''; $('fair-note').textContent = 'PER·PBR 이력이 없어 계산할 수 없습니다.'; return; }
+    const names = { 0.1: '하위 10%', 0.25: '하위 25%', 0.5: '중앙값', 0.75: '상위 25%', 0.9: '상위 10%' };
+    let html = `<thead><tr><th>${winLabel()} 분포</th>${cols.map(([, n]) => `<th>${n}</th>`).join('')}</tr></thead><tbody>`;
+    for (let i = 0; i < 5; i++) {
+      const q = out[cols[0][0]][i].q;
+      html += `<tr${q === 0.5 ? ' class="mid"' : ''}><td>${names[q]}</td>` + cols.map(([k, , u]) => {
+        const x = out[k][i], ch = (x.level / last.c - 1) * 100;
+        return `<td class="num">${f(x.level, 0)} <span class="${cls(ch)}">${sf(ch, 1)}%</span><span class="sub">${f(x.mult, 2)}${u}</span></td>`;
+      }).join('') + '</tr>';
+    }
+    $('fair').innerHTML = html + '</tbody>';
+    $('fair-note').textContent = `지금의 1포인트당 순자산 ${f(base.pbr, 0)}·이익 ${f(base.per, 0)}·배당 ${f(base.dy, 1)}에 ${winLabel()}의 배수 분포를 곱한 KOSPI입니다. 배당수익률은 낮을수록 지수가 높습니다.`;
+  }
+
+  function renderInputs() {
+    const bond = $('in-bond'), gdp = $('in-gdp');
+    if (hasKtb) {
+      const k = [...rows].reverse().find((r) => fin(r.ktb));
+      bond.value = k ? k.ktb : ''; bond.disabled = true;
+      $('h-bond').textContent = k ? `한국은행 ECOS ${k.d} 값` : '';
+    } else {
+      if (document.activeElement !== bond) bond.value = fin(state.bond) ? state.bond : '';
+      $('h-bond').textContent = '입력하면 일드갭을 계산합니다 (현재값만)';
+    }
+    if (document.activeElement !== gdp) gdp.value = fin(state.gdp) ? state.gdp : '';
+  }
+
+  function axisBase() {
+    const muted = css('--muted'), line = css('--line');
+    return {
+      animation: false,
+      textStyle: { color: css('--ink-2'), fontFamily: css('--font-ui'), fontSize: 11 },
+      grid: { left: 8, right: 64, top: 30, bottom: 50, containLabel: true },
+      xAxis: { type: 'category', boundaryGap: false, axisLine: { lineStyle: { color: line } }, axisLabel: { color: muted, hideOverlap: true } },
+      yAxis: { type: 'value', scale: true, splitLine: { lineStyle: { color: line, opacity: 0.6 } }, axisLabel: { color: muted } },
+      dataZoom: [{ type: 'inside' }, { type: 'slider', bottom: 8, height: 16, borderColor: line, textStyle: { color: muted } }],
+      tooltip: { trigger: 'axis', confine: true },
+    };
+  }
+
+  function renderHistory() {
+    const keys = ['pbr', 'per', 'dy', 'gap', 'roe', 'level'].filter((k) => Track.series(rows, k, bondNow()).filter(fin).length >= 20);
+    if (!keys.includes(state.metric)) state.metric = keys[0];
+    $('metric-seg').innerHTML = keys.map((k) => `<button type="button" data-metric="${k}" aria-pressed="${k === state.metric}">${Track.METRICS[k].label.split(' ')[0]}</button>`).join('');
+    const c = chart('hist-chart');
+    if (!c || !state.metric) return;
+    const k = state.metric, m = Track.METRICS[k], start = Track.windowStart(rows, state.win);
+    const s = Track.series(rows, k, bondNow()), view = rows.slice(start), vals = s.slice(start);
+    const st = Track.stats(vals, s[s.length - 1]);
+    $('hist-title').textContent = `${m.label} 이력 (${winLabel()})`;
+    const ink = css('--ink'), muted = css('--muted'), acc = css('--accent');
+    const ml = (y, type, op, name) => ({ yAxis: +y.toFixed(4), name, lineStyle: { type, color: muted, opacity: op, width: 1 }, label: { formatter: `${name} ${f(y, m.d)}`, color: muted, position: 'end', fontSize: 10.5 } });
+    const opt = axisBase();
+    opt.xAxis.data = view.map((r) => r.d);
+    opt.yAxis.axisLabel.formatter = (v) => f(v, m.d >= 2 ? 1 : 0);
+    opt.tooltip.valueFormatter = (v) => (fin(v) ? f(v, m.d) + m.unit : '–');
+    opt.series = [{
+      type: 'line', name: m.label, data: vals.map((v) => (fin(v) ? +v.toFixed(4) : null)), showSymbol: false, connectNulls: false,
+      lineStyle: { width: 1.6, color: acc }, itemStyle: { color: acc }, areaStyle: { color: acc, opacity: 0.06 },
+      markLine: st ? { symbol: 'none', silent: true, data: [ml(st.q50, 'solid', 0.9, '중앙'), ml(st.q25, 'dashed', 0.8, '25%'), ml(st.q75, 'dashed', 0.8, '75%'), ml(st.q10, 'dotted', 0.6, '10%'), ml(st.q90, 'dotted', 0.6, '90%')] } : undefined,
+      markPoint: { symbol: 'circle', symbolSize: 9, itemStyle: { color: ink }, label: { position: 'top', color: ink, fontWeight: 600, formatter: (p) => f(p.value, m.d) }, data: [{ coord: [view.length - 1, vals[vals.length - 1]], value: vals[vals.length - 1] }] },
+    }];
+    c.setOption(opt, true);
+  }
+
+  function renderBand() {
+    const opts = ['pbr', 'per'].filter((k) => rows.some((r) => fin(r[k])));
+    if (!opts.includes(state.band)) state.band = opts[0];
+    $('band-seg').innerHTML = opts.map((k) => `<button type="button" data-band="${k}" aria-pressed="${k === state.band}">${k.toUpperCase()}</button>`).join('');
+    const c = chart('band-chart');
+    if (!c || !state.band) return;
+    const k = state.band, start = Track.windowStart(rows, state.win), view = rows.slice(start);
+    let unit = NaN;
+    const units = view.map((r) => { if (fin(r[k]) && r[k] > 0) unit = r.c / r[k]; return unit; });
+    const s = Track.series(rows, k).slice(start).filter(fin).sort((a, b) => a - b);
+    const lo = Track.quantile(s, 0.05), hi = Track.quantile(s, 0.95);
+    const raw = (hi - lo) / 5, mag = 10 ** Math.floor(Math.log10(raw || 0.1));
+    const step = [1, 2, 2.5, 5, 10].map((x) => x * mag).find((x) => x >= raw);
+    const mults = [];
+    for (let i = Math.floor(lo / step); i <= Math.ceil(hi / step); i++) if (i * step > 0) mults.push(+(i * step).toFixed(4));
+    const muted = css('--muted'), ink = css('--ink');
+    const opt = axisBase();
+    opt.xAxis.data = view.map((r) => r.d);
+    opt.yAxis.axisLabel.formatter = (v) => f(v, 0);
+    opt.tooltip.valueFormatter = (v) => (fin(v) ? f(v, 0) : '–');
+    opt.legend = { top: 0, left: 0, data: ['KOSPI'], textStyle: { color: css('--ink-2') }, itemWidth: 16, itemHeight: 3 };
+    opt.series = mults.map((mv) => ({
+      type: 'line', name: `${k.toUpperCase()} ${mv}배`, data: units.map((u) => (fin(u) ? +(u * mv).toFixed(1) : null)), showSymbol: false, silent: true,
+      lineStyle: { width: 1, type: 'dashed', color: muted }, itemStyle: { color: muted }, emphasis: { disabled: true },
+      endLabel: { show: true, formatter: `${mv}배`, color: muted, fontSize: 11 },
+    })).concat([{ type: 'line', name: 'KOSPI', data: view.map((r) => r.c), showSymbol: false, lineStyle: { width: 1.8, color: ink }, itemStyle: { color: ink } }]);
+    c.setOption(opt, true);
+    $('band-note').textContent = `점선은 그날의 1포인트당 ${k === 'pbr' ? '순자산(BPS = 종가 ÷ PBR)' : '이익(EPS = 종가 ÷ PER)'} × 배수입니다. KRX가 실적을 반영하는 시점에 계단처럼 바뀝니다.`;
+  }
+
+  function renderSources() {
+    const items = (payload.sources || []).map((s) => `<li>${s.ok ? '' : '받지 못함 · '}${esc(s.name)} — ${esc(s.detail)}</li>`);
+    items.push('<li>KOSPI 지수·시가총액: KRX 정보데이터시스템 [11003] 개별지수 시세 추이</li>');
+    items.push('<li>PER·PBR·배당수익률: KRX 정보데이터시스템 [11007] PER/PBR/배당수익률</li>');
+    if (hasKtb) items.push('<li>국고채 10년 금리: 한국은행 ECOS 817Y002 시장금리(일별)</li>');
+    $('sources').innerHTML = items.join('');
+  }
+
+  function renderAll() {
+    renderLevel(); renderVerdict(); renderCards(); renderFair(); renderInputs(); renderHistory(); renderBand(); renderSources();
+  }
+
+  $('win-seg').addEventListener('click', (e) => { const b = e.target.closest('[data-win]'); if (b) { state.win = b.dataset.win; save(); renderAll(); } });
+  $('metric-seg').addEventListener('click', (e) => { const b = e.target.closest('[data-metric]'); if (b) { state.metric = b.dataset.metric; save(); renderHistory(); } });
+  $('band-seg').addEventListener('click', (e) => { const b = e.target.closest('[data-band]'); if (b) { state.band = b.dataset.band; save(); renderBand(); } });
+  $('in-bond').addEventListener('input', (e) => { const v = parseFloat(e.target.value); state.bond = fin(v) ? v : null; save(); renderVerdict(); renderCards(); renderHistory(); });
+  $('in-gdp').addEventListener('input', (e) => { const v = parseFloat(e.target.value); state.gdp = fin(v) ? v : null; save(); renderCards(); });
+  window.addEventListener('resize', () => Object.values(charts).forEach((c) => c.resize()));
+  const rethemed = () => renderAll();
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', rethemed); } catch (e) { /* 구형 브라우저 */ }
+  new MutationObserver(rethemed).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  renderAll();
+})();
+</script>
